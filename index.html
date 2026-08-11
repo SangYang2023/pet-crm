@@ -194,7 +194,7 @@ let IS_ADMIN = false;
 let es = null;                       // SSE 连接
 const MY_ID = Math.random().toString(36).slice(2);  // 本客户端唯一标识
 let lsCount = 0;                     // 实时同步到的更新次数
-const state = {tab:'dash', search:'', province:'', city:'', industry:'', bizStatus:'', leadStatus:'', priority:'', sort:'name', page:1, pageSize:50};
+const state = {tab:'dash', search:'', province:'', city:'', district:'', industry:'', bizStatus:'', leadStatus:'', priority:'', sort:'name', page:1, pageSize:50};
 
 async function initStore(){
   try{
@@ -260,6 +260,7 @@ function applyFilters(){
       if(isMuni && d.district!==state.city) return false;
       if(!isMuni && d.city!==state.city) return false;
     }
+    if(state.district && d.district!==state.district) return false;
     if(state.industry && d.industry!==state.industry) return false;
     if(state.bizStatus && d.bizStatus!==state.bizStatus) return false;
     if(state.leadStatus){ const l=getLead(d.id); const ls=l?l.leadStatus:'待开发'; if(ls!==state.leadStatus) return false; }
@@ -427,6 +428,11 @@ function cityOptions(){
   }
   return [...new Set(DATA.filter(d=>d.province===state.province).map(d=>d.city).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'zh'));
 }
+// 第三级筛选：仅普通省份（非直辖市）选了城市后才显示区/县
+function districtOptions(){
+  if(!state.province || !state.city || MUNICIPALITIES.includes(state.province)) return [];
+  return [...new Set(DATA.filter(d=>d.province===state.province && d.city===state.city).map(d=>d.district).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'zh'));
+}
 function renderLeads(){
   const mode=state.tab;
   const onlyDisabled = mode==='disabled';
@@ -439,6 +445,7 @@ function renderLeads(){
     <input class="search" id="fSearch" placeholder="🔍 搜索企业名称 / 手机号 / 法人 / 信用代码 / 行业…" value="${state.search}">
     <select id="fProvince"><option value="">全部省份</option>${provinces.map(p=>`<option ${p===state.province?'selected':''}>${p}</option>`).join('')}</select>
     <select id="fCity"><option value="">全部城市</option>${cities.map(c=>`<option ${c===state.city?'selected':''}>${c}</option>`).join('')}</select>
+    ${districtOptions().length?'<select id="fDistrict"><option value="">全部区县</option>'+districtOptions().map(x=>`<option ${x===state.district?'selected':''}>${x}</option>`).join('')+'</select>':''}
     <select id="fIndustry"><option value="">全部行业</option>${industries.map(i=>`<option ${i===state.industry?'selected':''}>${i}</option>`).join('')}</select>
     <select id="fBiz"><option value="">经营状态</option>${bizStats.map(b=>`<option ${b===state.bizStatus?'selected':''}>${b}</option>`).join('')}</select>
     <select id="fLead"><option value="">线索状态</option>${LEAD_STATUSES.map(s=>`<option ${s===state.leadStatus?'selected':''}>${s}</option>`).join('')}</select>
@@ -451,13 +458,14 @@ function renderLeads(){
   // bind events after insert
   document.getElementById('view').innerHTML = toolbar + `<div id="tableHost"></div>`;
   document.getElementById('fSearch').addEventListener('input',e=>{state.search=e.target.value;state.page=1;renderTableHost();});
-  document.getElementById('fProvince').addEventListener('change',e=>{state.province=e.target.value;state.city='';state.page=1;renderLeads();});
-  document.getElementById('fCity').addEventListener('change',e=>{state.city=e.target.value;state.page=1;renderTableHost();});
+  document.getElementById('fProvince').addEventListener('change',e=>{state.province=e.target.value;state.city='';state.district='';state.page=1;renderLeads();});
+  document.getElementById('fCity').addEventListener('change',e=>{state.city=e.target.value;state.district='';state.page=1;renderLeads();});
+  const fd=document.getElementById('fDistrict'); if(fd) fd.addEventListener('change',e=>{state.district=e.target.value;state.page=1;renderTableHost();});
   document.getElementById('fIndustry').addEventListener('change',e=>{state.industry=e.target.value;state.page=1;renderTableHost();});
   document.getElementById('fBiz').addEventListener('change',e=>{state.bizStatus=e.target.value;state.page=1;renderTableHost();});
   document.getElementById('fLead').addEventListener('change',e=>{state.leadStatus=e.target.value;state.page=1;renderTableHost();});
   document.getElementById('fPri').addEventListener('change',e=>{state.priority=e.target.value;state.page=1;renderTableHost();});
-  document.getElementById('btnReset').addEventListener('click',()=>{Object.assign(state,{search:'',province:'',city:'',industry:'',bizStatus:'',leadStatus:'',priority:'',page:1});renderLeads();});
+  document.getElementById('btnReset').addEventListener('click',()=>{Object.assign(state,{search:'',province:'',city:'',district:'',industry:'',bizStatus:'',leadStatus:'',priority:'',page:1});renderLeads();});
   document.getElementById('btnExport').addEventListener('click',()=>exportCSV());
   if(IS_ADMIN && !onlyDisabled){ const bb=document.getElementById('btnBatch'); if(bb) bb.addEventListener('click',openBatchAssign); }
   renderTableHost();
@@ -497,7 +505,7 @@ function renderTableHost(){
       }
       return `<tr onclick="openDetail(${d.id})">
         <td><b>${d.name}</b></td>
-        <td>${(function(){ const p=d.province||'', c=d.city||'', ds=d.district||''; if(MUNICIPALITIES.includes(p)) return p+' '+ds; return p+' '+c; })()}</td>
+        <td>${(function(){ const p=d.province||'', c=d.city||'', ds=d.district||''; if(MUNICIPALITIES.includes(p)) return p+' '+ds; return p+' '+c+(ds?(' '+ds):''); })()}</td>
         <td>${d.industry||'<span class="hint">—</span>'}</td>
         <td><span class="tag ${BIZ_COLOR[d.bizStatus]||'t-gray'}">${d.bizStatus||'—'}</span></td>
         <td>${d.phone?`<a href="javascript:copyText('${d.phone}')" onclick="event.stopPropagation()">${d.phone}</a>`:'—'}</td>
