@@ -146,6 +146,7 @@
       <div class="sub">管理员可一次性将一批客户指派给某位业务员</div>
       <label>分配范围</label>
       <select id="bScope">
+        <option value="filtered">当前筛选结果</option>
         <option value="all">全部客户</option>
         <option value="province">按省份</option>
         <option value="provinceCity">按省份+城市</option>
@@ -704,9 +705,10 @@ function openBatchAssign(){
   scope.onchange=()=>{
     sv.innerHTML=''; sc.innerHTML='';
     const v=scope.value;
-    if(v==='all' || v==='provinceCity'){ sv.style.display=(v==='all'?'none':'block'); sc.style.display='none'; }
+    if(v==='all' || v==='filtered'){ sv.style.display='none'; sc.style.display='none'; }
+    else if(v==='provinceCity'){ sv.style.display='block'; sc.style.display='none'; }
     else { sv.style.display='block'; sc.style.display='none'; }
-    if(v==='all'){ updateBatchPreview(); return; }
+    if(v==='all' || v==='filtered'){ updateBatchPreview(); return; }
     if(v==='province'){
       const opts=uniqueSorted('province');
       sv.innerHTML='<option value="">请选择省份…</option>'+opts.map(o=>`<option>${o}</option>`).join('');
@@ -736,7 +738,10 @@ function openBatchAssign(){
     updateBatchPreview();
   };
   ow.onchange=updateBatchPreview;
-  scope.value='all'; sv.style.display='none'; sc.style.display='none'; sv.innerHTML=''; sc.innerHTML='';
+  // 自动判断：页面有筛选条件时默认选"当前筛选结果"
+  const hasFilter = state.province || state.city || state.district || state.industry || state.bizStatus || state.leadStatus || state.priority || state.search;
+  scope.value = hasFilter ? 'filtered' : 'all';
+  sv.style.display='none'; sc.style.display='none'; sv.innerHTML=''; sc.innerHTML='';
   ow.innerHTML=OWNERS.map(o=>`<option>${o}</option>`).join('');
   ow.value=OWNERS[0];
   updateBatchPreview();
@@ -744,6 +749,10 @@ function openBatchAssign(){
 function closeBatch(){ const m=document.getElementById('batchMask'); if(m) m.classList.remove('show'); }
 function batchMatchIds(){
   const v=document.getElementById('bScope').value;
+  if(v==='filtered'){
+    // 复用页面当前所有筛选条件（省/市/区县/行业/状态/搜索等）
+    return applyFilters().map(d=>d.id);
+  }
   const sv=document.getElementById('bScopeVal').value;
   const sc=document.getElementById('bScopeCity').value;
   const ids=[];
