@@ -1,0 +1,23 @@
+# Render 部署配置
+# 把这个文件放在仓库根目录，在 Render 里「Connect a repository」选本仓库后，
+# Render 会自动按下面配置部署，无需你手动填表单。
+#
+# 安全提示：CRM_USERS / CRM_PASSWORD 设为 sync:false，
+# 部署时 Render 会让你填写登录账号密码——不要把密码写进这个文件（仓库是公开的）。
+services:
+  - type: web
+    name: pet-crm
+    runtime: node
+    plan: free
+    region: singapore
+    branch: main
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: CRM_USERS
+        sync: false
+    # 如需让跟进数据在重启后不丢失，请在 Render 控制台里：
+      # 1) 加一块 Disk，挂载路径 /data（1GB 免费额度内）
+      # 2) 再加环境变量 DATA_DIR = /data
+      # 然后重新 Deploy 一次。
