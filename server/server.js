@@ -133,7 +133,7 @@ function readStore() {
       if (!v || typeof v !== 'object') continue;
       if (!v.leadStatus || v.leadStatus === 'undefined') { v.leadStatus = '待开发'; dirty = true; }
     }
-    if (dirty) writeStore(obj);
+    if (dirty) { writeStore(obj); syncToGitHub('cleanup-undefined'); }
     return obj; 
   }
   catch (e) { return {}; }
