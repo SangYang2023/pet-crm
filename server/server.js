@@ -71,6 +71,8 @@ function loadUsers() {
   return list;
 }
 const USERS = loadUsers();
+// 管理员账号（拥有批量分配等管理权限），用环境变量 CRM_ADMINS 指定，逗号分隔
+const ADMINS = (process.env.CRM_ADMINS || '').split(',').map(s => s.trim()).filter(Boolean);
 function parseCookies(req) {
   const out = {}; (req.headers.cookie || '').split(';').forEach(c => {
     const i = c.indexOf('='); if (i > 0) out[c.slice(0,i).trim()] = decodeURIComponent(c.slice(i+1).trim());
@@ -138,7 +140,8 @@ const server = http.createServer(async (req, res) => {
 
   // ---- 登录态查询（无需鉴权） ----
   if (urlPath === '/api/me' && req.method === 'GET') {
-    return sendJSON(res, 200, { user: currentUser(req) });
+    const u = currentUser(req);
+    return sendJSON(res, 200, { user: u, isAdmin: u ? ADMINS.includes(u) : false });
   }
 
   // ---- 登录 ----
@@ -206,6 +209,30 @@ const server = http.createServer(async (req, res) => {
       broadcast(from);
       return sendJSON(res, 200, { ok:true });
     }
+  }
+
+  // ---- 批量分配（仅管理员） ----
+  if (urlPath === '/api/followups/batch-assign' && req.method === 'POST') {
+    const u = currentUser(req);
+    if (!u || !ADMINS.includes(u)) {
+      res.writeHead(403, { 'Content-Type':'application/json; charset=utf-8', 'Access-Control-Allow-Origin':'*' });
+      return res.end(JSON.stringify({ error:'forbidden' }));
+    }
+    const body = await readBody(req);
+    const ids = Array.isArray(body.ids) ? body.ids.map(Number).filter(n => n > 0) : [];
+    const owner = String(body.owner || '').trim();
+    if (!owner) return sendJSON(res, 400, { ok:false, error:'owner required' });
+    const store = readStore();
+    let n = 0;
+    ids.forEach(id => {
+      const key = String(id);
+      const cur = store[key] || {};
+      cur.owner = owner; cur.updated = new Date().toISOString();
+      store[key] = cur; n++;
+    });
+    writeStore(store);
+    broadcast(req.headers['x-client-id'] || null);
+    return sendJSON(res, 200, { ok:true, count:n });
   }
 
   // ---- 静态 ----

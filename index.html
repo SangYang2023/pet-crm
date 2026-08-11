@@ -95,6 +95,18 @@
   .login-card input{width:100%;height:42px;border:1px solid var(--line);border-radius:9px;padding:0 12px;font-size:14px;margin-bottom:12px}
   .login-card .btn{width:100%;height:42px}
   .login-err{color:var(--red);font-size:12px;min-height:16px;margin-bottom:6px}
+  /* batch assign modal */
+  .modal-mask{position:fixed;inset:0;background:rgba(15,23,42,.55);display:none;align-items:center;justify-content:center;z-index:210}
+  .modal-mask.show{display:flex}
+  .modal-card{background:#fff;border-radius:16px;padding:24px 26px;width:480px;max-width:94vw;box-shadow:0 24px 70px rgba(0,0,0,.32)}
+  .modal-card h2{margin:0 0 4px;font-size:19px}
+  .modal-card .sub{color:var(--muted);font-size:12px;margin-bottom:16px}
+  .modal-card label{display:block;font-size:13px;color:var(--muted);margin:12px 0 5px}
+  .modal-card select{width:100%;height:38px;border:1px solid var(--line);border-radius:8px;padding:0 10px;font-size:13px}
+  .modal-actions{display:flex;gap:10px;margin-top:20px}
+  .modal-actions .btn{flex:1}
+  .btn.warn{background:linear-gradient(120deg,#e8590c,#f08c00)}
+  .batch-preview{margin-top:14px;font-size:13px;color:var(--muted);min-height:18px}
 </style>
 </head>
 <body>
@@ -126,6 +138,29 @@
     </div>
   </div>
 
+  <!-- batch assign modal (admin only) -->
+  <div class="modal-mask" id="batchMask">
+    <div class="modal-card">
+      <h2>👥 批量分配客户</h2>
+      <div class="sub">管理员可一次性将一批客户指派给某位业务员</div>
+      <label>分配范围</label>
+      <select id="bScope">
+        <option value="all">全部客户</option>
+        <option value="province">按省份</option>
+        <option value="industry">按行业</option>
+        <option value="bizStatus">按经营状态</option>
+      </select>
+      <select id="bScopeVal" style="display:none"></select>
+      <label>指派给业务员</label>
+      <select id="bOwner">${OWNERS.map(o=>`<option>${o}</option>`).join('')}</select>
+      <div class="batch-preview" id="bPreview"></div>
+      <div class="modal-actions">
+        <button class="btn ghost" onclick="closeBatch()">取消</button>
+        <button class="btn warn" onclick="batchAssign()">执行分配</button>
+      </div>
+    </div>
+  </div>
+
   <!-- drawer -->
   <div class="mask" id="mask"></div>
   <div class="drawer" id="drawer">
@@ -146,12 +181,13 @@ const META = window.CRM_META || {};
 const STORE_KEY = 'petCrmFollow_v1';
 const LEAD_STATUSES = ['待开发','跟进中','已成交','已流失','已放弃'];
 const PRIORITIES = ['高','中','低'];
-const OWNERS = ['邱小波','何柯','王雄','蒲斌','杨兰香','阳云霞','张冲','刘长春','赵静'];
+const OWNERS = ['邱小波','何柯','王雄','蒲斌','杨兰香','阳云霞','张冲','刘长春','赵静','杨继磊'];
 const BIZ_COLOR = {'存续':'t-green','在业':'t-teal','注销':'t-gray','撤销':'t-red','迁出':'t-orange'};
 const LEAD_COLOR = {'待开发':'t-gray','跟进中':'t-blue','已成交':'t-green','已流失':'t-red','已放弃':'t-purple'};
 
 let store = {};
 let online = false;
+let IS_ADMIN = false;
 let es = null;                       // SSE 连接
 const MY_ID = Math.random().toString(36).slice(2);  // 本客户端唯一标识
 let lsCount = 0;                     // 实时同步到的更新次数
@@ -387,6 +423,7 @@ function renderLeads(onlyMine){
     <select id="fPri"><option value="">优先级</option>${PRIORITIES.map(p=>`<option ${p===state.priority?'selected':''}>${p}</option>`).join('')}</select>
     <button class="btn ghost" id="btnReset">重置</button>
     <button class="btn" id="btnExport">⬇ 导出CSV</button>
+    ${IS_ADMIN?'<button class="btn warn" id="btnBatch">👥 批量分配</button>':''}
   </div>`;
 
   // bind events after insert
@@ -400,6 +437,7 @@ function renderLeads(onlyMine){
   document.getElementById('fPri').addEventListener('change',e=>{state.priority=e.target.value;state.page=1;renderTableHost(onlyMine);});
   document.getElementById('btnReset').addEventListener('click',()=>{Object.assign(state,{search:'',province:'',city:'',industry:'',bizStatus:'',leadStatus:'',priority:'',page:1});renderLeads(onlyMine);});
   document.getElementById('btnExport').addEventListener('click',()=>exportCSV(onlyMine));
+  if(IS_ADMIN){ const bb=document.getElementById('btnBatch'); if(bb) bb.addEventListener('click',openBatchAssign); }
   renderTableHost(onlyMine);
 }
 function renderTableHost(onlyMine){
@@ -565,7 +603,7 @@ function toast(msg){
 
 /* ---------- 登录鉴权 ---------- */
 async function checkAuth(){
-  try{ const r=await fetch('/api/me'); if(r.ok){ const j=await r.json(); return j.user||null; } }catch(e){}
+  try{ const r=await fetch('/api/me'); if(r.ok){ const j=await r.json(); IS_ADMIN=!!j.isAdmin; return j.user||null; } }catch(e){}
   return null;
 }
 function showLogin(){
@@ -591,6 +629,58 @@ async function doLogin(){
 async function doLogout(){
   try{ await fetch('/api/logout',{method:'POST'}); }catch(e){}
   location.reload();
+}
+
+/* ---------- 批量分配（管理员） ---------- */
+function openBatchAssign(){
+  const m=document.getElementById('batchMask'); if(m) m.classList.add('show');
+  const scope=document.getElementById('bScope'), sv=document.getElementById('bScopeVal'), ow=document.getElementById('bOwner');
+  scope.onchange=()=>{
+    sv.innerHTML='';
+    const v=scope.value;
+    if(v==='all'){ sv.style.display='none'; updateBatchPreview(); return; }
+    sv.style.display='block';
+    let opts=[];
+    if(v==='province') opts=uniqueSorted('province');
+    else if(v==='industry') opts=uniqueSorted('industry');
+    else if(v==='bizStatus') opts=Object.keys(BIZ_COLOR);
+    sv.innerHTML='<option value="">请选择…</option>'+opts.map(o=>`<option>${o}</option>`).join('');
+    sv.onchange=updateBatchPreview;
+    updateBatchPreview();
+  };
+  ow.onchange=updateBatchPreview;
+  scope.value='all'; sv.style.display='none'; sv.innerHTML=''; ow.value=OWNERS[0];
+  updateBatchPreview();
+}
+function closeBatch(){ const m=document.getElementById('batchMask'); if(m) m.classList.remove('show'); }
+function batchMatchIds(){
+  const v=document.getElementById('bScope').value;
+  const sv=document.getElementById('bScopeVal').value;
+  const ids=[];
+  for(const d of DATA){
+    if(v==='all') ids.push(d.id);
+    else if(v==='province' && sv && d.province===sv) ids.push(d.id);
+    else if(v==='industry' && sv && d.industry===sv) ids.push(d.id);
+    else if(v==='bizStatus' && sv && d.bizStatus===sv) ids.push(d.id);
+  }
+  return ids;
+}
+function updateBatchPreview(){
+  const n=batchMatchIds().length;
+  const ow=document.getElementById('bOwner').value;
+  document.getElementById('bPreview').textContent=`将把 ${n} 家客户指派给「${ow}」`;
+}
+async function batchAssign(){
+  const ids=batchMatchIds();
+  const owner=document.getElementById('bOwner').value;
+  if(ids.length===0){ document.getElementById('bPreview').textContent='当前范围没有匹配的客户'; return; }
+  if(!confirm(`确认将 ${ids.length} 家客户指派给「${owner}」？`)) return;
+  document.getElementById('bPreview').textContent='分配中…';
+  try{
+    const r=await fetch('/api/followups/batch-assign',{method:'POST',headers:{'Content-Type':'application/json','X-Client-Id':MY_ID},body:JSON.stringify({ids,owner})});
+    if(r.ok){ const j=await r.json(); closeBatch(); await initStore(); render(); toast(`已成功分配 ${j.count} 家客户给 ${owner}`); }
+    else { const j=await r.json().catch(()=>({})); document.getElementById('bPreview').textContent= j.error==='forbidden'?'无权限：仅管理员可执行批量分配':'分配失败，请重试'; }
+  }catch(e){ document.getElementById('bPreview').textContent='网络错误，请重试'; }
 }
 
 /* ---------- tabs & init ---------- */
