@@ -257,7 +257,7 @@ const server = http.createServer(async (req, res) => {
     ids.forEach(id => {
       const key = String(id);
       const cur = store[key] || {};
-      cur.owner = owner; cur.updated = new Date().toISOString();
+      cur.owner = owner; if(!cur.leadStatus) cur.leadStatus = '待开发'; cur.updated = new Date().toISOString();
       store[key] = cur; n++;
     });
     writeStore(store);
