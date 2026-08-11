@@ -2,6 +2,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 const PORT = process.env.PORT || 8778;
 const STATIC_DIR = path.join(__dirname, '..');          // pet-crm/
@@ -32,6 +33,54 @@ function startHeartbeat() {
   heartbeat = setInterval(() => {
     clients.forEach(res => { try { res.write(': ping\n\n'); } catch(e){ clients.delete(res); } });
   }, 25000);
+}
+
+/* ---------- 简单账号登录（零依赖） ---------- */
+const sessions = new Map();                 // sid -> { user, expires }
+const SESSION_TTL = 1000 * 60 * 60 * 24 * 7; // 7 天
+function loadUsers() {
+  const list = [];
+  if (process.env.CRM_USERS) {
+    process.env.CRM_USERS.split(',').forEach(p => {
+      const i = p.indexOf(':'); if (i > 0) list.push([p.slice(0,i).trim(), p.slice(i+1).trim()]);
+    });
+  } else if (process.env.CRM_PASSWORD) {
+    list.push(['team', String(process.env.CRM_PASSWORD)]);
+  } else {
+    list.push(['admin', 'admin123']);
+    console.log('⚠️  未设置 CRM_USERS / CRM_PASSWORD，使用默认账号 admin / admin123，请在部署平台的环境变量中修改！');
+  }
+  return list;
+}
+const USERS = loadUsers();
+function parseCookies(req) {
+  const out = {}; (req.headers.cookie || '').split(';').forEach(c => {
+    const i = c.indexOf('='); if (i > 0) out[c.slice(0,i).trim()] = decodeURIComponent(c.slice(i+1).trim());
+  }); return out;
+}
+function isHttps(req) { return req.headers['x-forwarded-proto'] === 'https' || !!req.socket.encrypted; }
+function sessionCookie(sid, remove, req) {
+  const parts = [`sid=${remove ? '' : sid}`, 'Path=/', 'HttpOnly', 'SameSite=Lax'];
+  if (isHttps(req)) parts.push('Secure');
+  parts.push(remove ? 'Max-Age=0' : `Max-Age=${SESSION_TTL/1000}`);
+  return parts.join('; ');
+}
+function currentUser(req) {
+  const sid = parseCookies(req).sid;
+  if (!sid) return null;
+  const s = sessions.get(sid);
+  if (!s) return null;
+  if (s.expires < Date.now()) { sessions.delete(sid); return null; }
+  return s.user;
+}
+function requireAuth(req, res) {
+  const u = currentUser(req);
+  if (!u) {
+    res.writeHead(401, { 'Content-Type':'application/json; charset=utf-8', 'Access-Control-Allow-Origin':'*' });
+    res.end(JSON.stringify({ error:'unauthorized' }));
+    return null;
+  }
+  return u;
 }
 
 const MIME = { '.html':'text/html; charset=utf-8', '.js':'application/javascript; charset=utf-8',
@@ -69,8 +118,33 @@ function readBody(req) {
 const server = http.createServer(async (req, res) => {
   const urlPath = req.url.split('?')[0];
 
-  // ---- 实时事件流 SSE ----
+  // ---- 登录态查询（无需鉴权） ----
+  if (urlPath === '/api/me' && req.method === 'GET') {
+    return sendJSON(res, 200, { user: currentUser(req) });
+  }
+
+  // ---- 登录 ----
+  if (urlPath === '/api/login' && req.method === 'POST') {
+    const body = await readBody(req);
+    const u = String(body.user || '').trim(), p = String(body.pass || '');
+    const ok = USERS.some(([nu, np]) => nu === u && np === p);
+    if (!ok) return sendJSON(res, 401, { ok:false, error:'invalid' });
+    const sid = crypto.randomBytes(18).toString('hex');
+    sessions.set(sid, { user:u, expires: Date.now() + SESSION_TTL });
+    res.writeHead(200, { 'Content-Type':'application/json; charset=utf-8', 'Set-Cookie': sessionCookie(sid, false, req), 'Access-Control-Allow-Origin':'*' });
+    return res.end(JSON.stringify({ ok:true, user:u }));
+  }
+
+  // ---- 登出 ----
+  if (urlPath === '/api/logout' && req.method === 'POST') {
+    const sid = parseCookies(req).sid; if (sid) sessions.delete(sid);
+    res.writeHead(200, { 'Content-Type':'application/json; charset=utf-8', 'Set-Cookie': sessionCookie('', true, req), 'Access-Control-Allow-Origin':'*' });
+    return res.end(JSON.stringify({ ok:true }));
+  }
+
+  // ---- 实时事件流 SSE（需登录） ----
   if (urlPath === '/api/events' && req.method === 'GET') {
+    if (!requireAuth(req, res)) return;
     res.writeHead(200, {
       'Content-Type':'text/event-stream; charset=utf-8',
       'Cache-Control':'no-cache',
@@ -85,12 +159,14 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // ---- API ----
+  // ---- API（需登录） ----
   if (urlPath === '/api/followups' && req.method === 'GET') {
+    if (!requireAuth(req, res)) return;
     return sendJSON(res, 200, readStore());
   }
   const m = urlPath.match(/^\/api\/followups\/(\d+)$/);
   if (m) {
+    if (!requireAuth(req, res)) return;
     const id = m[1];
     const from = req.headers['x-client-id'] || null;
     if (req.method === 'GET') {
@@ -115,7 +191,14 @@ const server = http.createServer(async (req, res) => {
   }
 
   // ---- 静态 ----
-  if (req.method === 'GET') return serveStatic(req, res);
+  if (req.method === 'GET') {
+    // 线索数据含手机号等敏感信息，未登录禁止下载
+    if (urlPath === '/crm-data.js' && !currentUser(req)) {
+      res.writeHead(401, { 'Content-Type':'application/json; charset=utf-8' });
+      return res.end(JSON.stringify({ error:'unauthorized' }));
+    }
+    return serveStatic(req, res);
+  }
 
   res.writeHead(405); res.end('method not allowed');
 });
