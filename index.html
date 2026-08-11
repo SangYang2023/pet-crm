@@ -143,18 +143,7 @@
   <div class="modal-mask" id="batchMask">
     <div class="modal-card">
       <h2>👥 批量分配客户</h2>
-      <div class="sub">管理员可一次性将一批客户指派给某位业务员</div>
-      <label>分配范围</label>
-      <select id="bScope">
-        <option value="filtered">当前筛选结果</option>
-        <option value="all">全部客户</option>
-        <option value="province">按省份</option>
-        <option value="provinceCity">按省份+城市</option>
-        <option value="industry">按行业</option>
-        <option value="bizStatus">按经营状态</option>
-      </select>
-      <select id="bScopeVal" style="display:none"></select>
-      <select id="bScopeCity" style="display:none"></select>
+      <div class="sub">将勾选的客户指派给业务员</div>
       <label>指派给业务员</label>
       <select id="bOwner"></select>
       <div class="batch-preview" id="bPreview"></div>
@@ -453,7 +442,7 @@ function renderLeads(){
     <select id="fPri"><option value="">优先级</option>${PRIORITIES.map(p=>`<option ${p===state.priority?'selected':''}>${p}</option>`).join('')}</select>
     <button class="btn ghost" id="btnReset">重置</button>
     <button class="btn" id="btnExport">⬇ 导出CSV</button>
-    ${IS_ADMIN && !onlyDisabled?'<button class="btn warn" id="btnBatch">👥 批量分配</button>':''}
+    ${IS_ADMIN && !onlyDisabled?'<button class="btn ghost" id="btnSelAll" onclick="toggleSelectAll(true)">☑ 全选当前筛选</button><button class="btn warn" id="btnBatch" disabled style="opacity:0.5">👥 批量分配</button>':''}
   </div>`;
 
   // bind events after insert
@@ -466,10 +455,11 @@ function renderLeads(){
   document.getElementById('fBiz').addEventListener('change',e=>{state.bizStatus=e.target.value;state.page=1;renderTableHost();});
   document.getElementById('fLead').addEventListener('change',e=>{state.leadStatus=e.target.value;state.page=1;renderTableHost();});
   document.getElementById('fPri').addEventListener('change',e=>{state.priority=e.target.value;state.page=1;renderTableHost();});
-  document.getElementById('btnReset').addEventListener('click',()=>{Object.assign(state,{search:'',province:'',city:'',district:'',industry:'',bizStatus:'',leadStatus:'',priority:'',page:1});renderLeads();});
+  document.getElementById('btnReset').addEventListener('click',()=>{Object.assign(state,{search:'',province:'',city:'',district:'',industry:'',bizStatus:'',leadStatus:'',priority:'',page:1});clearSelection();renderLeads();});
   document.getElementById('btnExport').addEventListener('click',()=>exportCSV());
   if(IS_ADMIN && !onlyDisabled){ const bb=document.getElementById('btnBatch'); if(bb) bb.addEventListener('click',openBatchAssign); }
   renderTableHost();
+  refreshBatchBtn();
 }
 function renderTableHost(){
   let arr=applyFilters();
@@ -480,7 +470,9 @@ function renderTableHost(){
   const start=(state.page-1)*state.pageSize;
   const pageArr=arr.slice(start,start+state.pageSize);
   const sortMark=(k)=>state.sort===k?' ▾':'';
+  const showCheck = IS_ADMIN && state.tab!=='disabled';
   const head=`<table><thead><tr>
+    ${showCheck?`<th style="width:36px"><input type="checkbox" id="chkAll" onchange="toggleSelectAll(this.checked)"></th>`:''}
     <th onclick="setSort('name')">企业名称${sortMark('name')}</th>
     <th onclick="setSort('province')">地区${sortMark('province')}</th>
     <th>行业</th>
@@ -494,7 +486,7 @@ function renderTableHost(){
   let body;
   if(pageArr.length===0){
     const emptyMsg = state.tab==='disabled' ? '停用库为空，暂无已停用的客户' : '没有符合条件的线索';
-    body=`<tr><td colspan="9"><div class="empty">${emptyMsg}</div></td></tr>`;
+    body=`<tr><td colspan="${showCheck?10:9}"><div class="empty">${emptyMsg}</div></td></tr>`;
   } else {
     body=pageArr.map(d=>{
       const l=getLead(d.id); const ls=(l&&l.leadStatus)||'待开发'; const pr=l?l.priority:'中';
@@ -505,7 +497,9 @@ function renderTableHost(){
       } else {
         opBtn=`<button class="btn mini ghost" onclick="event.stopPropagation();openDetail(${d.id})">跟进</button>`;
       }
+      const checked = SELECTED_IDS.has(d.id) ? 'checked' : '';
       return `<tr onclick="openDetail(${d.id})">
+        ${showCheck?`<td onclick="event.stopPropagation()"><input type="checkbox" class="row-chk" data-id="${d.id}" ${checked} onchange="onRowCheck(${d.id},this.checked)"></td>`:''}
         <td><b>${d.name}</b></td>
         <td>${(function(){ const p=d.province||'', c=d.city||'', ds=d.district||''; const parts=[p]; if(c) parts.push(c); if(ds) parts.push(ds); return parts.join(' '); })()}</td>
         <td>${d.industry||'<span class="hint">—</span>'}</td>
@@ -698,93 +692,55 @@ async function doLogout(){
   location.reload();
 }
 
-/* ---------- 批量分配（管理员） ---------- */
+/* ---------- 勾选 & 批量分配（管理员） ---------- */
+const SELECTED_IDS = new Set();
+function onRowCheck(id, checked){
+  if(checked) SELECTED_IDS.add(id); else SELECTED_IDS.delete(id);
+  refreshBatchBtn();
+}
+function toggleSelectAll(checked){
+  const arr = applyFilters();
+  if(checked) arr.forEach(d=>SELECTED_IDS.add(d.id));
+  else arr.forEach(d=>SELECTED_IDS.delete(d.id));
+  // 刷新当前页面的 checkbox 状态
+  document.querySelectorAll('.row-chk').forEach(el=>{
+    el.checked = checked;
+  });
+  refreshBatchBtn();
+}
+function clearSelection(){
+  SELECTED_IDS.clear();
+  document.querySelectorAll('.row-chk').forEach(el=>{el.checked=false;});
+  const ca=document.getElementById('chkAll'); if(ca) ca.checked=false;
+  refreshBatchBtn();
+}
+function refreshBatchBtn(){
+  const bb=document.getElementById('btnBatch');
+  if(bb){
+    bb.disabled = SELECTED_IDS.size===0;
+    bb.textContent = SELECTED_IDS.size>0 ? `👥 批量分配(${SELECTED_IDS.size})` : '👥 批量分配';
+    bb.style.opacity = SELECTED_IDS.size>0 ? '1' : '0.5';
+  }
+}
 function openBatchAssign(){
+  if(SELECTED_IDS.size===0){ toast('请先勾选要分配的客户'); return; }
   const m=document.getElementById('batchMask'); if(m) m.classList.add('show');
-  const scope=document.getElementById('bScope'), sv=document.getElementById('bScopeVal'), sc=document.getElementById('bScopeCity'), ow=document.getElementById('bOwner');
-  scope.onchange=()=>{
-    sv.innerHTML=''; sc.innerHTML='';
-    const v=scope.value;
-    if(v==='all' || v==='filtered'){ sv.style.display='none'; sc.style.display='none'; }
-    else if(v==='provinceCity'){ sv.style.display='block'; sc.style.display='none'; }
-    else { sv.style.display='block'; sc.style.display='none'; }
-    if(v==='all' || v==='filtered'){ updateBatchPreview(); return; }
-    if(v==='province'){
-      const opts=uniqueSorted('province');
-      sv.innerHTML='<option value="">请选择省份…</option>'+opts.map(o=>`<option>${o}</option>`).join('');
-    } else if(v==='provinceCity'){
-      const provs=uniqueSorted('province');
-      sv.innerHTML='<option value="">请选择省份…</option>'+provs.map(p=>`<option>${p}</option>`).join('');
-    } else if(v==='industry'){
-      const opts=uniqueSorted('industry');
-      sv.innerHTML='<option value="">请选择…</option>'+opts.map(o=>`<option>${o}</option>`).join('');
-    } else if(v==='bizStatus'){
-      sv.innerHTML='<option value="">请选择…</option>'+Object.keys(BIZ_COLOR).map(o=>`<option>${o}</option>`).join('');
-    }
-    sv.onchange=()=>{
-      if(v==='provinceCity'){
-        const p=sv.value; sc.style.display=p?'block':'none';
-        if(p){
-          const isMuni = MUNICIPALITIES.includes(p);
-          const field = isMuni ? 'district' : 'city';
-          const cities=[...new Set(DATA.filter(d=>d.province===p).map(d=>d[field]).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'zh'));
-          sc.innerHTML='<option value="">请选择城市…</option>'+cities.map(c=>`<option>${c}</option>`).join('');
-          sc.onchange=updateBatchPreview;
-        }
-      }
-      updateBatchPreview();
-    };
-    sc.onchange=updateBatchPreview;
-    updateBatchPreview();
-  };
-  ow.onchange=updateBatchPreview;
-  // 自动判断：页面有筛选条件时默认选"当前筛选结果"
-  const hasFilter = state.province || state.city || state.district || state.industry || state.bizStatus || state.leadStatus || state.priority || state.search;
-  scope.value = hasFilter ? 'filtered' : 'all';
-  sv.style.display='none'; sc.style.display='none'; sv.innerHTML=''; sc.innerHTML='';
+  const ow=document.getElementById('bOwner');
   ow.innerHTML=OWNERS.map(o=>`<option>${o}</option>`).join('');
   ow.value=OWNERS[0];
-  updateBatchPreview();
+  document.getElementById('bPreview').textContent=`已选择 ${SELECTED_IDS.size} 家客户`;
 }
 function closeBatch(){ const m=document.getElementById('batchMask'); if(m) m.classList.remove('show'); }
-function batchMatchIds(){
-  const v=document.getElementById('bScope').value;
-  if(v==='filtered'){
-    // 复用页面当前所有筛选条件（省/市/区县/行业/状态/搜索等）
-    return applyFilters().map(d=>d.id);
-  }
-  const sv=document.getElementById('bScopeVal').value;
-  const sc=document.getElementById('bScopeCity').value;
-  const ids=[];
-  for(const d of DATA){
-    if(v==='all') ids.push(d.id);
-    else if(v==='province' && sv && d.province===sv) ids.push(d.id);
-    else if(v==='provinceCity' && sv && sc && d.province===sv){
-      const isMuni = MUNICIPALITIES.includes(sv);
-      if(isMuni && d.district===sc) ids.push(d.id);
-      else if(!isMuni && d.city===sc) ids.push(d.id);
-    }
-    else if(v==='industry' && sv && d.industry===sv) ids.push(d.id);
-    else if(v==='bizStatus' && sv && d.bizStatus===sv) ids.push(d.id);
-  }
-  return ids;
-}
-function updateBatchPreview(){
-  const n=batchMatchIds().length;
-  const ow=document.getElementById('bOwner').value;
-  document.getElementById('bPreview').textContent=`将把 ${n} 家客户指派给「${ow}」`;
-}
 async function batchAssign(){
-  const ids=batchMatchIds();
+  const ids=[...SELECTED_IDS];
   const owner=document.getElementById('bOwner').value;
-  if(ids.length===0){ document.getElementById('bPreview').textContent='当前范围没有匹配的客户'; return; }
+  if(ids.length===0){ toast('没有选中的客户'); return; }
   if(!confirm(`确认将 ${ids.length} 家客户指派给「${owner}」？`)) return;
-  document.getElementById('bPreview').textContent='分配中…';
   try{
     const r=await fetch('/api/followups/batch-assign',{method:'POST',headers:{'Content-Type':'application/json','X-Client-Id':MY_ID},body:JSON.stringify({ids,owner})});
-    if(r.ok){ const j=await r.json(); closeBatch(); await initStore(); render(); toast(`已成功分配 ${j.count} 家客户给 ${owner}`); }
-    else { const j=await r.json().catch(()=>({})); document.getElementById('bPreview').textContent= j.error==='forbidden'?'无权限：仅管理员可执行批量分配':'分配失败，请重试'; }
-  }catch(e){ document.getElementById('bPreview').textContent='网络错误，请重试'; }
+    if(r.ok){ const j=await r.json(); closeBatch(); clearSelection(); await initStore(); render(); toast(`已成功分配 ${j.count} 家客户给 ${owner}`); }
+    else { const j=await r.json().catch(()=>({})); toast(j.error==='forbidden'?'无权限：仅管理员可执行批量分配':'分配失败，请重试'); }
+  }catch(e){ toast('网络错误，请重试'); }
 }
 
 /* ---------- tabs & init ---------- */
