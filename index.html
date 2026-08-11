@@ -121,6 +121,7 @@
     <div class="tab active" data-tab="dash">📊 仪表盘<span class="cnt" id="cntAll">0</span></div>
     <div class="tab" data-tab="leads">📇 线索库</div>
     <div class="tab" data-tab="mine">⭐ 我的跟进<span class="cnt" id="cntMine">0</span></div>
+    <div class="tab" data-tab="disabled">🚫 停用库<span class="cnt" id="cntDisabled">0</span></div>
     <div class="tab" data-tab="funnel">📈 转化漏斗</div>
   </div>
 
@@ -243,10 +244,16 @@ function setLead(id, patch){
 function copyText(t){ if(!t)return; navigator.clipboard?.writeText(t); toast('已复制：'+t); }
 
 /* ---------- filters ---------- */
-function applyFilters(onlyMine){
+function applyFilters(){
+  const mode=state.tab;
+  const onlyMine = mode==='mine';
+  const onlyDisabled = mode==='disabled';
   const q = state.search.trim().toLowerCase();
   return DATA.filter(d=>{
-    if(onlyMine){ const l=getLead(d.id); if(!l || !l.leadStatus || l.leadStatus==='待开发') return false; }
+    const l=getLead(d.id);
+    if(onlyDisabled){ if(!l || !l.disabled) return false; }
+    else if(l && l.disabled) return false;
+    if(onlyMine){ if(!l || !l.leadStatus || l.leadStatus==='待开发') return false; }
     if(state.province && d.province!==state.province) return false;
     if(state.city && d.city!==state.city) return false;
     if(state.industry && d.industry!==state.industry) return false;
@@ -276,25 +283,27 @@ function render(){
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===state.tab));
   document.getElementById('cntAll').textContent = DATA.length;
   document.getElementById('cntMine').textContent = countMine();
+  document.getElementById('cntDisabled').textContent = countDisabled();
   if(state.tab==='dash') renderDash();
-  else if(state.tab==='leads') renderLeads(false);
   else if(state.tab==='funnel') renderFunnel();
-  else renderLeads(true);
+  else if(state.tab==='leads' || state.tab==='mine' || state.tab==='disabled') renderLeads();
 }
-function countMine(){ let n=0; for(const d of DATA){const l=getLead(d.id); if(l&&l.leadStatus&&l.leadStatus!=='待开发')n++;} return n; }
+function countMine(){ let n=0; for(const d of DATA){const l=getLead(d.id); if(l&&!l.disabled&&l.leadStatus&&l.leadStatus!=='待开发')n++;} return n; }
+function countDisabled(){ let n=0; for(const d of DATA){const l=getLead(d.id); if(l&&l.disabled)n++;} return n; }
 
 /* ---------- 转化漏斗 & 销售业绩 ---------- */
 function funnelColor(s){return {'待开发':'#94a3b8','跟进中':'#2f6df6','已成交':'#19a974','已流失':'#e5533c','已放弃':'#7a40c0'}[s]||'#ccc';}
 function renderFunnel(){
   const counts={}; LEAD_STATUSES.forEach(s=>counts[s]=0);
   const owners={};
-  DATA.forEach(d=>{
+  const activeData = DATA.filter(d=>{ const l=getLead(d.id); return !(l && l.disabled); });
+  activeData.forEach(d=>{
     const l=getLead(d.id); const ls=l?l.leadStatus:'待开发';
     counts[ls]=(counts[ls]||0)+1;
     const ow=(l&&l.owner||'').trim();
     if(ow){ if(!owners[ow])owners[ow]={total:0,deal:0,follow:0}; owners[ow].total++; if(ls==='已成交')owners[ow].deal++; if(ls==='跟进中')owners[ow].follow++; }
   });
-  const total=DATA.length, followed=total-counts['待开发'], deal=counts['已成交'];
+  const total=activeData.length, followed=total-counts['待开发'], deal=counts['已成交'];
   const max=Math.max(...LEAD_STATUSES.map(s=>counts[s]));
   const order=['待开发','跟进中','已成交','已流失','已放弃'];
   const funnelHtml=order.map(s=>`<div class="bar-row"><div class="bar-name">${s}</div><div class="bar-track"><div class="bar-fill" style="width:${max?counts[s]/max*100:0}%;background:${funnelColor(s)}"></div></div><div class="bar-val">${counts[s]}</div></div>`).join('');
@@ -409,7 +418,9 @@ function cityOptions(){
   if(!state.province) return uniqueSorted('city');
   return [...new Set(DATA.filter(d=>d.province===state.province).map(d=>d.city).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'zh'));
 }
-function renderLeads(onlyMine){
+function renderLeads(){
+  const mode=state.tab;
+  const onlyDisabled = mode==='disabled';
   const provinces=uniqueSorted('province');
   const industries=uniqueSorted('industry');
   const bizStats=Object.keys(BIZ_COLOR);
@@ -425,25 +436,25 @@ function renderLeads(onlyMine){
     <select id="fPri"><option value="">优先级</option>${PRIORITIES.map(p=>`<option ${p===state.priority?'selected':''}>${p}</option>`).join('')}</select>
     <button class="btn ghost" id="btnReset">重置</button>
     <button class="btn" id="btnExport">⬇ 导出CSV</button>
-    ${IS_ADMIN?'<button class="btn warn" id="btnBatch">👥 批量分配</button>':''}
+    ${IS_ADMIN && !onlyDisabled?'<button class="btn warn" id="btnBatch">👥 批量分配</button>':''}
   </div>`;
 
   // bind events after insert
   document.getElementById('view').innerHTML = toolbar + `<div id="tableHost"></div>`;
-  document.getElementById('fSearch').addEventListener('input',e=>{state.search=e.target.value;state.page=1;renderTableHost(onlyMine);});
-  document.getElementById('fProvince').addEventListener('change',e=>{state.province=e.target.value;state.city='';state.page=1;renderLeads(onlyMine);});
-  document.getElementById('fCity').addEventListener('change',e=>{state.city=e.target.value;state.page=1;renderTableHost(onlyMine);});
-  document.getElementById('fIndustry').addEventListener('change',e=>{state.industry=e.target.value;state.page=1;renderTableHost(onlyMine);});
-  document.getElementById('fBiz').addEventListener('change',e=>{state.bizStatus=e.target.value;state.page=1;renderTableHost(onlyMine);});
-  document.getElementById('fLead').addEventListener('change',e=>{state.leadStatus=e.target.value;state.page=1;renderTableHost(onlyMine);});
-  document.getElementById('fPri').addEventListener('change',e=>{state.priority=e.target.value;state.page=1;renderTableHost(onlyMine);});
-  document.getElementById('btnReset').addEventListener('click',()=>{Object.assign(state,{search:'',province:'',city:'',industry:'',bizStatus:'',leadStatus:'',priority:'',page:1});renderLeads(onlyMine);});
-  document.getElementById('btnExport').addEventListener('click',()=>exportCSV(onlyMine));
-  if(IS_ADMIN){ const bb=document.getElementById('btnBatch'); if(bb) bb.addEventListener('click',openBatchAssign); }
-  renderTableHost(onlyMine);
+  document.getElementById('fSearch').addEventListener('input',e=>{state.search=e.target.value;state.page=1;renderTableHost();});
+  document.getElementById('fProvince').addEventListener('change',e=>{state.province=e.target.value;state.city='';state.page=1;renderLeads();});
+  document.getElementById('fCity').addEventListener('change',e=>{state.city=e.target.value;state.page=1;renderTableHost();});
+  document.getElementById('fIndustry').addEventListener('change',e=>{state.industry=e.target.value;state.page=1;renderTableHost();});
+  document.getElementById('fBiz').addEventListener('change',e=>{state.bizStatus=e.target.value;state.page=1;renderTableHost();});
+  document.getElementById('fLead').addEventListener('change',e=>{state.leadStatus=e.target.value;state.page=1;renderTableHost();});
+  document.getElementById('fPri').addEventListener('change',e=>{state.priority=e.target.value;state.page=1;renderTableHost();});
+  document.getElementById('btnReset').addEventListener('click',()=>{Object.assign(state,{search:'',province:'',city:'',industry:'',bizStatus:'',leadStatus:'',priority:'',page:1});renderLeads();});
+  document.getElementById('btnExport').addEventListener('click',()=>exportCSV());
+  if(IS_ADMIN && !onlyDisabled){ const bb=document.getElementById('btnBatch'); if(bb) bb.addEventListener('click',openBatchAssign); }
+  renderTableHost();
 }
-function renderTableHost(onlyMine){
-  let arr=applyFilters(onlyMine);
+function renderTableHost(){
+  let arr=applyFilters();
   arr=sortRecs(arr);
   const total=arr.length;
   const pages=Math.max(1,Math.ceil(total/state.pageSize));
@@ -463,10 +474,18 @@ function renderTableHost(onlyMine){
   </tr></thead><tbody>`;
   let body;
   if(pageArr.length===0){
-    body=`<tr><td colspan="8"><div class="empty">没有符合条件的线索</div></td></tr>`;
+    const emptyMsg = state.tab==='disabled' ? '停用库为空，暂无已停用的客户' : '没有符合条件的线索';
+    body=`<tr><td colspan="8"><div class="empty">${emptyMsg}</div></td></tr>`;
   } else {
     body=pageArr.map(d=>{
       const l=getLead(d.id); const ls=l?l.leadStatus:'待开发'; const pr=l?l.priority:'中';
+      let opBtn;
+      if(state.tab==='disabled'){
+        if(IS_ADMIN) opBtn=`<button class="btn mini" style="background:var(--green);color:#fff" onclick="event.stopPropagation();enableLead(${d.id})">启用</button>`;
+        else opBtn=`<button class="btn mini ghost" onclick="event.stopPropagation();openDetail(${d.id})">查看</button>`;
+      } else {
+        opBtn=`<button class="btn mini ghost" onclick="event.stopPropagation();openDetail(${d.id})">跟进</button>`;
+      }
       return `<tr onclick="openDetail(${d.id})">
         <td><b>${d.name}</b></td>
         <td>${d.province||''} ${d.city||''}</td>
@@ -475,7 +494,7 @@ function renderTableHost(onlyMine){
         <td>${d.phone?`<a href="javascript:copyText('${d.phone}')" onclick="event.stopPropagation()">${d.phone}</a>`:'—'}</td>
         <td>${d.legal||'—'}</td>
         <td><span class="tag ${LEAD_COLOR[ls]}">${ls}</span> ${pr!=='中'?`<span class="tag t-orange">${pr}</span>`:''}</td>
-        <td><button class="btn mini ghost" onclick="event.stopPropagation();openDetail(${d.id})">跟进</button></td>
+        <td>${opBtn}</td>
       </tr>`;
     }).join('');
   }
@@ -485,8 +504,8 @@ function renderTableHost(onlyMine){
     <button class="btn ghost mini" onclick="goPage(1)">下一页</button></div>`;
   document.getElementById('tableHost').innerHTML=table+pager;
 }
-function setSort(s){ state.sort=s; state.page=1; const onlyMine=state.tab==='mine'; renderTableHost(onlyMine); }
-function goPage(d){ state.page+=d; const onlyMine=state.tab==='mine'; renderTableHost(onlyMine); }
+function setSort(s){ state.sort=s; state.page=1; renderTableHost(); }
+function goPage(d){ state.page+=d; renderTableHost(); }
 
 /* ---------- DETAIL ---------- */
 function openDetail(id){
@@ -517,6 +536,13 @@ function openDetail(id){
         <button class="btn" onclick="saveFollow(${id})">💾 保存跟进信息</button>
         <button class="btn ghost" onclick="copyCard(${id})">📋 复制名片</button>
       </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-title">🚫 停用管理</div>
+      ${l.disabled
+        ? `<div class="hint" style="margin-bottom:10px">该客户已停用，不在线索库展示，仅管理员可重新启用。</div>${IS_ADMIN?`<button class="btn" style="background:var(--green);color:#fff" onclick="enableLead(${id})">✅ 启用此客户</button>`:'<span class="tag t-gray">仅管理员可启用</span>'}`
+        : `<button class="btn" style="background:var(--red);color:#fff" onclick="disableLead(${id})">🚫 停用此客户</button><span class="hint" style="margin-left:8px">停用后将从线索库移除，仅可在「停用库」查阅。</span>`}
     </div>
 
     <div class="sec">
@@ -561,6 +587,23 @@ function saveFollow(id){
   toast('已保存跟进信息');
   render();
 }
+async function disableLead(id){
+  const d=DATA.find(x=>x.id===id); if(!d)return;
+  if(!confirm(`确认停用「${d.name}」？\n停用后将退出线索库，仅管理员可在「停用库」重新启用。`)) return;
+  const cur=getLead(id)||{leadStatus:'待开发',priority:'中',owner:'',notes:[]};
+  cur.disabled=true; cur.updated=new Date().toISOString(); store[id]=cur; saveStore();
+  try{ await fetch('/api/followups/'+id+'/disable',{method:'POST',headers:{'X-Client-Id':MY_ID}}); }catch(e){}
+  toast('已停用：'+d.name);
+  closeDrawer(); render();
+}
+async function enableLead(id){
+  const d=DATA.find(x=>x.id===id); if(!d)return;
+  const cur=getLead(id)||{leadStatus:'待开发',priority:'中',owner:'',notes:[]};
+  cur.disabled=false; cur.updated=new Date().toISOString(); store[id]=cur; saveStore();
+  try{ await fetch('/api/followups/'+id+'/enable',{method:'POST',headers:{'X-Client-Id':MY_ID}}); }catch(e){}
+  toast('已启用：'+d.name);
+  closeDrawer(); render();
+}
 function addNote(id){
   const ta=document.getElementById('dNote'); const txt=ta.value.trim();
   if(!txt){toast('请输入跟进内容');return;}
@@ -583,14 +626,16 @@ function closeDrawer(){document.getElementById('mask').classList.remove('show');
 function escapeHtml(s){return (s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])).replace(/"/g,'&quot;');}
 
 /* ---------- EXPORT ---------- */
-function exportCSV(onlyMine){
-  let arr=applyFilters(onlyMine); arr=sortRecs(arr);
-  const head=['企业名称','省份','城市','区县','行业','经营状态','电话','法人','邮箱','注册资本','成立时间','线索状态','优先级','负责人','下次跟进','跟进记录数'];
-  const rows=arr.map(d=>{const l=getLead(d.id)||{};return [d.name,d.province,d.city,d.district,d.industry,d.bizStatus,d.phone,d.legal,d.email,d.regCapital,d.establishDate,l.leadStatus||'待开发',l.priority||'中',l.owner||'',l.nextDate||'',(l.notes?l.notes.length:0)];});
+function exportCSV(){
+  const mode=state.tab;
+  let arr=applyFilters(); arr=sortRecs(arr);
+  const head=['企业名称','省份','城市','区县','行业','经营状态','电话','法人','邮箱','注册资本','成立时间','线索状态','优先级','负责人','下次跟进','跟进记录数','是否停用'];
+  const rows=arr.map(d=>{const l=getLead(d.id)||{};return [d.name,d.province,d.city,d.district,d.industry,d.bizStatus,d.phone,d.legal,d.email,d.regCapital,d.establishDate,l.leadStatus||'待开发',l.priority||'中',l.owner||'',l.nextDate||'',(l.notes?l.notes.length:0),l.disabled?'是':'否'];});
   const csv='\ufeff'+[head,...rows].map(r=>r.map(c=>`"${String(c||'').replace(/"/g,'""')}"`).join(',')).join('\n');
   const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
-  a.download=`宠物客户线索_${onlyMine?'我的跟进':'全部'}_${new Date().toISOString().slice(0,10)}.csv`;
+  const label = mode==='mine'?'我的跟进':mode==='disabled'?'停用库':'全部';
+  a.download=`宠物客户线索_${label}_${new Date().toISOString().slice(0,10)}.csv`;
   a.click(); toast('已导出 '+arr.length+' 条');
 }
 

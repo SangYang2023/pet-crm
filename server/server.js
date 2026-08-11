@@ -196,6 +196,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === 'PUT' || req.method === 'POST') {
       const body = await readBody(req);
+      delete body.disabled;   // 停用状态只能通过专用接口修改，普通 PUT 不允许改
       const store = readStore();
       store[id] = Object.assign(store[id] || {}, body, { updated: new Date().toISOString() });
       writeStore(store);
@@ -209,6 +210,35 @@ const server = http.createServer(async (req, res) => {
       broadcast(from);
       return sendJSON(res, 200, { ok:true });
     }
+  }
+
+  // ---- 停用客户（任意登录账号） ----
+  const dm = urlPath.match(/^\/api\/followups\/(\d+)\/disable$/);
+  if (dm && req.method === 'POST') {
+    if (!requireAuth(req, res)) return;
+    const id = dm[1];
+    const store = readStore();
+    store[id] = Object.assign(store[id] || { leadStatus:'待开发', priority:'中', owner:'', notes:[] }, { disabled:true, updated: new Date().toISOString() });
+    writeStore(store);
+    broadcast(req.headers['x-client-id'] || null);
+    return sendJSON(res, 200, { ok:true, id });
+  }
+  // ---- 启用客户（仅管理员） ----
+  const em = urlPath.match(/^\/api\/followups\/(\d+)\/enable$/);
+  if (em && req.method === 'POST') {
+    const u = currentUser(req);
+    if (!u || !ADMINS.includes(u)) {
+      res.writeHead(403, { 'Content-Type':'application/json; charset=utf-8', 'Access-Control-Allow-Origin':'*' });
+      return res.end(JSON.stringify({ error:'forbidden' }));
+    }
+    const id = em[1];
+    const store = readStore();
+    if (store[id]) store[id].disabled = false;
+    else store[id] = { disabled:false, leadStatus:'待开发', priority:'中', owner:'', notes:[] };
+    store[id].updated = new Date().toISOString();
+    writeStore(store);
+    broadcast(req.headers['x-client-id'] || null);
+    return sendJSON(res, 200, { ok:true, id });
   }
 
   // ---- 批量分配（仅管理员） ----
