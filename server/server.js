@@ -106,6 +106,7 @@ async function restoreFromGitHub() {
         const v = obj[k];
         if (!v || typeof v !== 'object') continue;
         if (!v.leadStatus || v.leadStatus === 'undefined') { v.leadStatus = '待开发'; dirty = true; }
+        if (!v.priority || v.priority === 'undefined') { v.priority = '中'; dirty = true; }
       }
       if (dirty) {
         const cleanTxt = JSON.stringify(obj, null, 2);
@@ -143,12 +144,13 @@ function syncToGitHub(reason) {
 function readStore() {
   try { 
     const obj = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
-    // 自动修复脏数据：leadStatus 为 undefined/"undefined"/空 时修正为"待开发"
+    // 自动修复脏数据：leadStatus/priority 为 undefined/"undefined"/空 时修正为默认值
     let dirty = false;
     for (const k of Object.keys(obj)) {
       const v = obj[k];
       if (!v || typeof v !== 'object') continue;
       if (!v.leadStatus || v.leadStatus === 'undefined') { v.leadStatus = '待开发'; dirty = true; }
+      if (!v.priority || v.priority === 'undefined') { v.priority = '中'; dirty = true; }
     }
     if (dirty) { writeStore(obj); syncToGitHub('cleanup-undefined'); }
     return obj; 
