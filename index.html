@@ -152,7 +152,7 @@
       </select>
       <select id="bScopeVal" style="display:none"></select>
       <label>指派给业务员</label>
-      <select id="bOwner">${OWNERS.map(o=>`<option>${o}</option>`).join('')}</select>
+      <select id="bOwner"></select>
       <div class="batch-preview" id="bPreview"></div>
       <div class="modal-actions">
         <button class="btn ghost" onclick="closeBatch()">取消</button>
@@ -649,7 +649,9 @@ function openBatchAssign(){
     updateBatchPreview();
   };
   ow.onchange=updateBatchPreview;
-  scope.value='all'; sv.style.display='none'; sv.innerHTML=''; ow.value=OWNERS[0];
+  scope.value='all'; sv.style.display='none'; sv.innerHTML='';
+  ow.innerHTML=OWNERS.map(o=>`<option>${o}</option>`).join('');
+  ow.value=OWNERS[0];
   updateBatchPreview();
 }
 function closeBatch(){ const m=document.getElementById('batchMask'); if(m) m.classList.remove('show'); }
