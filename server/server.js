@@ -1,5 +1,6 @@
 // 宠物行业 CRM 轻量后端：静态资源 + 跟进数据 REST API（零依赖，数据存于本地 JSON）
 const http = require('http');
+const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -29,6 +30,98 @@ const DATA_DIR = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : pat
 const DATA_FILE = path.join(DATA_DIR, 'followups.json');
 
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+
+/* ---------- 数据自动同步回 GitHub（免费持久化方案） ----------
+   原理：每次数据变更后，把 followups.json 作为文件提交回仓库；
+   每次服务启动（含重新部署）时，从 GitHub 拉取最新版本覆盖本地，
+   从而实现"换实例 / 重新部署后数据不丢"。需设置以下环境变量：
+     GITHUB_TOKEN      —— 具有 repo 权限的个人访问令牌(PAT)
+     GITHUB_REPO       —— 仓库 owner/name，默认 SangYang2023/pet-crm
+     GITHUB_BRANCH     —— 分支，默认 main
+     GITHUB_DATA_PATH  —— 仓库内数据文件路径，默认 server/data/followups.json
+   未设置 GITHUB_TOKEN 时自动关闭同步，退化为纯本地文件。 */
+const GH_TOKEN = process.env.GITHUB_TOKEN || '';
+const GH_REPO = process.env.GITHUB_REPO || 'SangYang2023/pet-crm';
+const GH_BRANCH = process.env.GITHUB_BRANCH || 'main';
+const GH_DATA_PATH = process.env.GITHUB_DATA_PATH || 'server/data/followups.json';
+const GH_ENABLED = !!GH_TOKEN;
+if (GH_ENABLED) console.log('[CRM] GitHub 同步已启用 ->', GH_REPO, GH_DATA_PATH);
+else console.log('[CRM] GitHub 同步未启用（未设置 GITHUB_TOKEN），数据仅存本地文件');
+
+function ghRequest(method, apiPath, body) {
+  return new Promise((resolve, reject) => {
+    const payload = body ? Buffer.from(body) : null;
+    const req = https.request({
+      hostname: 'api.github.com',
+      path: apiPath,
+      method,
+      headers: {
+        'User-Agent': 'pet-crm-sync',
+        'Accept': 'application/vnd.github+json',
+        'Authorization': 'Bearer ' + GH_TOKEN,
+        ...(payload ? { 'Content-Type': 'application/json', 'Content-Length': payload.length } : {})
+      }
+    }, res => {
+      let buf = '';
+      res.on('data', c => buf += c);
+      res.on('end', () => resolve({ status: res.statusCode, text: buf }));
+    });
+    req.on('error', reject);
+    if (payload) req.write(payload);
+    req.end();
+  });
+}
+
+async function ghGetFile(p) {
+  const res = await ghRequest('GET', `/repos/${GH_REPO}/contents/${encodeURI(p)}?ref=${GH_BRANCH}`);
+  if (res.status === 404) return null;
+  if (res.status >= 400) throw new Error('GET ' + res.status + ' ' + res.text);
+  try { return JSON.parse(res.text); } catch (e) { throw new Error('parse ' + res.text); }
+}
+
+async function ghPutFile(p, contentB64, sha, message, depth = 0) {
+  const body = JSON.stringify({ message, content: contentB64, ...(sha ? { sha } : {}) });
+  const res = await ghRequest('PUT', `/repos/${GH_REPO}/contents/${encodeURI(p)}`, body);
+  if (res.status === 409 && depth < 4) {
+    // 并发冲突：重新取 sha 后重试
+    const f = await ghGetFile(p);
+    return ghPutFile(p, contentB64, f ? f.sha : null, message, depth + 1);
+  }
+  if (res.status >= 400) throw new Error('PUT ' + res.status + ' ' + res.text);
+  return res;
+}
+
+// 启动时从 GitHub 拉取最新数据覆盖本地（实现重新部署后恢复）
+async function restoreFromGitHub() {
+  if (!GH_ENABLED) return;
+  try {
+    const f = await ghGetFile(GH_DATA_PATH);
+    if (f && f.content) {
+      const txt = Buffer.from(f.content, 'base64').toString('utf8');
+      fs.writeFileSync(DATA_FILE, txt, 'utf8');
+      console.log('[CRM] 已从 GitHub 恢复 followups.json（' + txt.length + ' 字节）');
+    } else {
+      console.log('[CRM] GitHub 上暂无数据文件，使用本地/部署版本');
+    }
+  } catch (e) {
+    console.log('[CRM] GitHub 恢复失败，沿用本地文件：', e.message);
+  }
+}
+
+// 变更后保存回 GitHub（串行队列，避免并发冲突）
+let ghSaveChain = Promise.resolve();
+function syncToGitHub(reason) {
+  if (!GH_ENABLED) return Promise.resolve();
+  ghSaveChain = ghSaveChain.then(async () => {
+    const content = fs.readFileSync(DATA_FILE, 'utf8');
+    const b64 = Buffer.from(content, 'utf8').toString('base64');
+    let sha = null;
+    try { const f = await ghGetFile(GH_DATA_PATH); sha = f ? f.sha : null; } catch (e) { /* 文件不存在则创建 */ }
+    await ghPutFile(GH_DATA_PATH, b64, sha, 'chore(data): auto-sync followups.json [' + (reason || 'update') + '] ' + new Date().toISOString());
+    console.log('[CRM] 已同步 followups.json 回 GitHub（' + (reason || 'update') + '）');
+  }).catch(e => console.log('[CRM] GitHub 同步出错（已忽略，下次变更重试）：', e.message));
+  return ghSaveChain;
+}
 
 function readStore() {
   try { 
@@ -213,6 +306,7 @@ const server = http.createServer(async (req, res) => {
       store[id] = Object.assign(store[id] || {}, body, { updated: new Date().toISOString() });
       writeStore(store);
       broadcast(from);
+      syncToGitHub('edit');
       return sendJSON(res, 200, { ok:true, id, item: store[id] });
     }
     if (req.method === 'DELETE') {
@@ -220,6 +314,7 @@ const server = http.createServer(async (req, res) => {
       delete store[id];
       writeStore(store);
       broadcast(from);
+      syncToGitHub('delete');
       return sendJSON(res, 200, { ok:true });
     }
   }
@@ -233,6 +328,7 @@ const server = http.createServer(async (req, res) => {
     store[id] = Object.assign(store[id] || { leadStatus:'待开发', priority:'中', owner:'', notes:[] }, { disabled:true, updated: new Date().toISOString() });
     writeStore(store);
     broadcast(req.headers['x-client-id'] || null);
+    syncToGitHub('disable');
     return sendJSON(res, 200, { ok:true, id });
   }
   // ---- 启用客户（仅管理员） ----
@@ -250,6 +346,7 @@ const server = http.createServer(async (req, res) => {
     store[id].updated = new Date().toISOString();
     writeStore(store);
     broadcast(req.headers['x-client-id'] || null);
+    syncToGitHub('enable');
     return sendJSON(res, 200, { ok:true, id });
   }
 
@@ -274,6 +371,7 @@ const server = http.createServer(async (req, res) => {
     });
     writeStore(store);
     broadcast(req.headers['x-client-id'] || null);
+    syncToGitHub('batch-assign');
     return sendJSON(res, 200, { ok:true, count:n });
   }
 
@@ -290,6 +388,18 @@ const server = http.createServer(async (req, res) => {
   res.writeHead(405); res.end('method not allowed');
 });
 
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`宠物CRM后端已启动: http://0.0.0.0:${PORT} (监听所有网卡，可用于公网部署)`);
+// 进程退出前（如 Render 缩容 / 重新部署发来 SIGTERM）尽量把最后一次变更刷回 GitHub
+function flushAndExit(code) {
+  ghSaveChain
+    .then(() => process.exit(code))
+    .catch(() => process.exit(code));
+  setTimeout(() => process.exit(code), 2500).unref();
+}
+process.on('SIGTERM', () => flushAndExit(0));
+process.on('SIGINT', () => flushAndExit(0));
+
+restoreFromGitHub().finally(() => {
+  server.listen(PORT, '0.0.0.0', () => {
+    console.log(`宠物CRM后端已启动: http://0.0.0.0:${PORT} (监听所有网卡，可用于公网部署)`);
+  });
 });
