@@ -208,6 +208,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'PUT' || req.method === 'POST') {
       const body = await readBody(req);
       delete body.disabled;   // 停用状态只能通过专用接口修改，普通 PUT 不允许改
+      if(!body.leadStatus || body.leadStatus==='undefined') body.leadStatus = '待开发';
       const store = readStore();
       store[id] = Object.assign(store[id] || {}, body, { updated: new Date().toISOString() });
       writeStore(store);
@@ -268,7 +269,7 @@ const server = http.createServer(async (req, res) => {
     ids.forEach(id => {
       const key = String(id);
       const cur = store[key] || {};
-      cur.owner = owner; if(!cur.leadStatus) cur.leadStatus = '待开发'; cur.updated = new Date().toISOString();
+      cur.owner = owner; if(!cur.leadStatus || cur.leadStatus==='undefined') cur.leadStatus = '待开发'; cur.updated = new Date().toISOString();
       store[key] = cur; n++;
     });
     writeStore(store);
