@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>全国宠物行业客户线索 CRM 系统</title>
+<style>
+  :root{
+    --bg:#f4f6fb; --panel:#ffffff; --ink:#1f2733; --muted:#6b7785;
+    --line:#e6eaf0; --accent:#2f6df6; --accent2:#15b9a6; --soft:#eef3ff;
+    --green:#19a974; --red:#e5533c; --orange:#f08a24; --gray:#94a3b8; --blue:#2f6df6; --teal:#15b9a6;
+    --shadow:0 6px 22px rgba(31,39,51,.08);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink);font-size:14px}
+  .topbar{display:flex;align-items:center;gap:14px;padding:14px 22px;background:linear-gradient(120deg,#2f6df6,#15b9a6);color:#fff;box-shadow:var(--shadow)}
+  .topbar h1{font-size:18px;margin:0;font-weight:700;letter-spacing:.5px}
+  .topbar .sub{font-size:12px;opacity:.85}
+  .topbar .badge{margin-left:auto;background:rgba(255,255,255,.18);padding:5px 12px;border-radius:20px;font-size:12px}
+  .tabs{display:flex;gap:4px;padding:0 18px;background:var(--panel);border-bottom:1px solid var(--line)}
+  .tab{padding:13px 18px;cursor:pointer;font-weight:600;color:var(--muted);border-bottom:3px solid transparent}
+  .tab.active{color:var(--accent);border-color:var(--accent)}
+  .tab .cnt{background:var(--soft);color:var(--accent);border-radius:10px;padding:1px 8px;font-size:11px;margin-left:6px}
+  .wrap{padding:20px 22px;max-width:1400px;margin:0 auto}
+  .grid{display:grid;gap:16px}
+  .kpis{grid-template-columns:repeat(5,1fr)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;box-shadow:var(--shadow)}
+  .kpi .label{color:var(--muted);font-size:12px;margin-bottom:8px}
+  .kpi .val{font-size:26px;font-weight:800;line-height:1}
+  .kpi .foot{font-size:11px;color:var(--muted);margin-top:6px}
+  .two{grid-template-columns:1.3fr 1fr}
+  .sec-title{font-weight:700;font-size:15px;margin:0 0 12px;display:flex;align-items:center;gap:8px}
+  .sec-title small{font-weight:500;color:var(--muted);font-size:12px}
+  .bar-row{display:flex;align-items:center;gap:10px;margin:7px 0;cursor:pointer}
+  .bar-row:hover .bar-name{color:var(--accent)}
+  .bar-name{width:120px;flex:none;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bar-track{flex:1;background:var(--soft);border-radius:6px;height:18px;overflow:hidden}
+  .bar-fill{height:100%;background:linear-gradient(90deg,#2f6df6,#15b9a6);border-radius:6px}
+  .bar-val{width:54px;text-align:right;font-size:12px;color:var(--muted);flex:none}
+  .donut-wrap{display:flex;align-items:center;gap:20px}
+  .legend{font-size:12px;display:flex;flex-direction:column;gap:6px}
+  .legend .li{display:flex;align-items:center;gap:7px}
+  .dot{width:10px;height:10px;border-radius:3px;flex:none}
+  .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px}
+  .toolbar input,.toolbar select{height:38px;border:1px solid var(--line);border-radius:9px;padding:0 12px;font-size:13px;background:#fff;color:var(--ink)}
+  .toolbar input.search{flex:1;min-width:240px}
+  .btn{border:none;background:var(--accent);color:#fff;height:38px;padding:0 16px;border-radius:9px;cursor:pointer;font-size:13px;font-weight:600}
+  .btn.ghost{background:var(--soft);color:var(--accent)}
+  .btn.mini{height:30px;padding:0 10px;font-size:12px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{padding:11px 12px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+  th{color:var(--muted);font-weight:600;background:#fafbfd;cursor:pointer;user-select:none}
+  tbody tr:hover{background:var(--soft);cursor:pointer}
+  .tag{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600}
+  .t-gray{background:#eef1f5;color:#5b6675}
+  .t-green{background:#e2f6ec;color:#128a5b}
+  .t-teal{background:#dff6f3;color:#0e8c7d}
+  .t-red{background:#fde6e2;color:#c43d28}
+  .t-orange{background:#fdeed9;color:#b9670f}
+  .t-blue{background:#e2ecfe;color:#1f5bd6}
+  .t-purple{background:#efe6fd;color:#7a40c0}
+  .pager{display:flex;align-items:center;gap:10px;margin-top:14px;justify-content:flex-end}
+  .empty{text-align:center;color:var(--muted);padding:50px}
+  /* drawer */
+  .mask{position:fixed;inset:0;background:rgba(20,28,40,.45);display:none;z-index:50}
+  .mask.show{display:block}
+  .drawer{position:fixed;top:0;right:0;height:100%;width:560px;max-width:94vw;background:#fff;box-shadow:-10px 0 40px rgba(0,0,0,.18);transform:translateX(100%);transition:transform .25s ease;z-index:60;display:flex;flex-direction:column}
+  .drawer.show{transform:translateX(0)}
+  .drawer-head{padding:18px 22px;border-bottom:1px solid var(--line);display:flex;align-items:flex-start;gap:12px}
+  .drawer-head h2{margin:0;font-size:18px}
+  .drawer-head .x{margin-left:auto;cursor:pointer;font-size:22px;color:var(--muted);line-height:1}
+  .drawer-body{padding:18px 22px;overflow:auto;flex:1}
+  .field-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;margin-bottom:8px}
+  .field{font-size:13px}
+  .field .k{color:var(--muted);font-size:11px;margin-bottom:2px}
+  .field .v{font-weight:600;word-break:break-all}
+  .sec{border-top:1px solid var(--line);margin-top:18px;padding-top:16px}
+  .fm-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+  .fm-row select,.fm-row input{height:36px;border:1px solid var(--line);border-radius:8px;padding:0 10px;font-size:13px}
+  .fm-row input.owner{flex:1;min-width:120px}
+  textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:10px;font-size:13px;font-family:inherit;resize:vertical;min-height:64px}
+  .timeline{margin-top:12px;display:flex;flex-direction:column;gap:10px}
+  .tl-item{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:#fafbfd}
+  .tl-item .t{font-size:11px;color:var(--muted);margin-bottom:4px}
+  .tl-item .x{font-size:13px;white-space:pre-wrap;word-break:break-all}
+  .hint{font-size:11px;color:var(--muted)}
+  @media(max-width:1000px){.kpis{grid-template-columns:repeat(2,1fr)}.two{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <h1>🐾 全国宠物行业客户线索 CRM</h1>
+    <span class="sub">基于「客户线索 全国宠物 带手机号」· 企业级销售线索管理</span>
+    <span class="badge" id="modeBadge">检测中…</span>
+    <span class="badge" id="totalBadge">加载中…</span>
+  </div>
+  <div class="tabs">
+    <div class="tab active" data-tab="dash">📊 仪表盘<span class="cnt" id="cntAll">0</span></div>
+    <div class="tab" data-tab="leads">📇 线索库</div>
+    <div class="tab" data-tab="mine">⭐ 我的跟进<span class="cnt" id="cntMine">0</span></div>
+    <div class="tab" data-tab="funnel">📈 转化漏斗</div>
+  </div>
+
+  <div class="wrap" id="view"></div>
+
+  <!-- drawer -->
+  <div class="mask" id="mask"></div>
+  <div class="drawer" id="drawer">
+    <div class="drawer-head">
+      <div>
+        <h2 id="dName">—</h2>
+        <div id="dSub" class="hint"></div>
+      </div>
+      <div class="x" id="dClose">✕</div>
+    </div>
+    <div class="drawer-body" id="dBody"></div>
+  </div>
+
+<script src="crm-data.js"></script>
+<script>
+const DATA = window.CRM_DATA || [];
+const META = window.CRM_META || {};
+const STORE_KEY = 'petCrmFollow_v1';
+const LEAD_STATUSES = ['待开发','跟进中','已成交','已流失','已放弃'];
+const PRIORITIES = ['高','中','低'];
+const BIZ_COLOR = {'存续':'t-green','在业':'t-teal','注销':'t-gray','撤销':'t-red','迁出':'t-orange'};
+const LEAD_COLOR = {'待开发':'t-gray','跟进中':'t-blue','已成交':'t-green','已流失':'t-red','已放弃':'t-purple'};
+
+let store = {};
+let online = false;
+let es = null;                       // SSE 连接
+const MY_ID = Math.random().toString(36).slice(2);  // 本客户端唯一标识
+let lsCount = 0;                     // 实时同步到的更新次数
+const state = {tab:'dash', search:'', province:'', city:'', industry:'', bizStatus:'', leadStatus:'', priority:'', sort:'name', page:1, pageSize:50};
+
+async function initStore(){
+  try{
+    const r = await fetch('/api/followups');
+    if(r.ok){ store = await r.json(); online = true; }
+  }catch(e){ online = false; }
+  if(!online){ try{ store = JSON.parse(localStorage.getItem(STORE_KEY))||{}; }catch(e){ store = {}; } }
+  updateModeBadge();
+  if(online) connectSSE();
+}
+/* ---------- 实时推送（SSE） ---------- */
+function connectSSE(){
+  if(es) return;
+  try{ es = new EventSource('/api/events'); }catch(e){ return; }
+  es.onmessage = (ev) => {
+    try{
+      const msg = JSON.parse(ev.data);
+      if(msg.type!=='update') return;
+      store = msg.store || store;
+      lsCount++;
+      updateModeBadge();
+      render();
+      if(msg.from && msg.from!==MY_ID) toast('🔄 团队线索已实时更新');
+      else if(!msg.from) toast('🔄 线索已实时同步');
+    }catch(_){}
+  };
+  es.onerror = () => { /* EventSource 会自动重连，无需处理 */ };
+}
+function updateModeBadge(){
+  const el = document.getElementById('modeBadge');
+  if(!el) return;
+  if(!online){ el.textContent = '💾 本地存储'; return; }
+  const live = es && es.readyState === 1;
+  el.textContent = live ? `🟢 实时同步 · ${lsCount>0?('已同步 '+lsCount+' 次'):'在线'}` : '☁ 云端同步';
+}
+function saveStore(){ localStorage.setItem(STORE_KEY, JSON.stringify(store)); }
+function syncRemote(id){
+  if(!online) return;
+  fetch('/api/followups/'+id, {method:'PUT', headers:{'Content-Type':'application/json','X-Client-Id':MY_ID}, body:JSON.stringify(store[id]||{})}).catch(()=>{});
+}
+function getLead(id){ return store[id] || null; }
+function setLead(id, patch){
+  const cur = store[id] || {leadStatus:'待开发', priority:'中', owner:'', nextDate:'', notes:[], updated:''};
+  Object.assign(cur, patch); cur.updated = new Date().toISOString();
+  store[id]=cur; saveStore(); syncRemote(id);
+}
+function copyText(t){ if(!t)return; navigator.clipboard?.writeText(t); toast('已复制：'+t); }
+
+/* ---------- filters ---------- */
+function applyFilters(onlyMine){
+  const q = state.search.trim().toLowerCase();
+  return DATA.filter(d=>{
+    if(onlyMine){ const l=getLead(d.id); if(!l || !l.leadStatus || l.leadStatus==='待开发') return false; }
+    if(state.province && d.province!==state.province) return false;
+    if(state.city && d.city!==state.city) return false;
+    if(state.industry && d.industry!==state.industry) return false;
+    if(state.bizStatus && d.bizStatus!==state.bizStatus) return false;
+    if(state.leadStatus){ const l=getLead(d.id); const ls=l?l.leadStatus:'待开发'; if(ls!==state.leadStatus) return false; }
+    if(state.priority){ const l=getLead(d.id); if((l?l.priority:'中')!==state.priority) return false; }
+    if(q){
+      const hay=(d.name+' '+d.phone+' '+d.legal+' '+d.creditCode+' '+d.industry+' '+d.city+' '+d.district+' '+d.email).toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+}
+function sortRecs(arr){
+  const s=state.sort;
+  return arr.slice().sort((a,b)=>{
+    if(s==='name') return a.name.localeCompare(b.name,'zh');
+    if(s==='est') return (b.establishDate||'').localeCompare(a.establishDate||'');
+    if(s==='cap') return parseFloat((b.regCapital||'0').replace(/[^0-9.]/g,''))-parseFloat((a.regCapital||'0').replace(/[^0-9.]/g,''));
+    if(s==='province') return (a.province||'').localeCompare(b.province||'zh');
+    return 0;
+  });
+}
+
+/* ---------- render dispatch ---------- */
+function render(){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===state.tab));
+  document.getElementById('cntAll').textContent = DATA.length;
+  document.getElementById('cntMine').textContent = countMine();
+  if(state.tab==='dash') renderDash();
+  else if(state.tab==='leads') renderLeads(false);
+  else if(state.tab==='funnel') renderFunnel();
+  else renderLeads(true);
+}
+function countMine(){ let n=0; for(const d of DATA){const l=getLead(d.id); if(l&&l.leadStatus&&l.leadStatus!=='待开发')n++;} return n; }
+
+/* ---------- 转化漏斗 & 销售业绩 ---------- */
+function funnelColor(s){return {'待开发':'#94a3b8','跟进中':'#2f6df6','已成交':'#19a974','已流失':'#e5533c','已放弃':'#7a40c0'}[s]||'#ccc';}
+function renderFunnel(){
+  const counts={}; LEAD_STATUSES.forEach(s=>counts[s]=0);
+  const owners={};
+  DATA.forEach(d=>{
+    const l=getLead(d.id); const ls=l?l.leadStatus:'待开发';
+    counts[ls]=(counts[ls]||0)+1;
+    const ow=(l&&l.owner||'').trim();
+    if(ow){ if(!owners[ow])owners[ow]={total:0,deal:0,follow:0}; owners[ow].total++; if(ls==='已成交')owners[ow].deal++; if(ls==='跟进中')owners[ow].follow++; }
+  });
+  const total=DATA.length, followed=total-counts['待开发'], deal=counts['已成交'];
+  const max=Math.max(...LEAD_STATUSES.map(s=>counts[s]));
+  const order=['待开发','跟进中','已成交','已流失','已放弃'];
+  const funnelHtml=order.map(s=>`<div class="bar-row"><div class="bar-name">${s}</div><div class="bar-track"><div class="bar-fill" style="width:${max?counts[s]/max*100:0}%;background:${funnelColor(s)}"></div></div><div class="bar-val">${counts[s]}</div></div>`).join('');
+  const lb=Object.entries(owners).sort((a,b)=>b[1].deal-a[1].deal).map(([n,o])=>`<tr><td><b>${escapeHtml(n)}</b></td><td>${o.total}</td><td>${o.follow}</td><td>${o.deal}</td><td>${o.total?Math.round(o.deal/o.total*100):0}%</td></tr>`).join('');
+  document.getElementById('view').innerHTML=`
+  <div class="grid kpis">
+    <div class="card kpi"><div class="label">跟进覆盖率</div><div class="val">${total?Math.round(followed/total*100):0}%</div><div class="foot">已跟进 ${followed} 家</div></div>
+    <div class="card kpi"><div class="label">成交率</div><div class="val">${total?Math.round(deal/total*100):0}%</div><div class="foot">已成交 ${deal} 家</div></div>
+    <div class="card kpi"><div class="label">跟进中</div><div class="val">${counts['跟进中']}</div><div class="foot">进行中</div></div>
+    <div class="card kpi"><div class="label">流失/放弃</div><div class="val">${counts['已流失']+counts['已放弃']}</div><div class="foot">需复盘</div></div>
+    <div class="card kpi"><div class="label">参与销售</div><div class="val">${Object.keys(owners).length}</div><div class="foot">位负责人</div></div>
+  </div>
+  <div class="grid two" style="margin-top:16px">
+    <div class="card"><p class="sec-title">🔻 转化漏斗（按线索状态）</p>${funnelHtml}
+      <p class="hint" style="margin-top:12px">待开发 → 跟进中 → 已成交 为主线；已流失/已放弃为退出环节。在「线索库」或客户详情中调整状态即可实时更新。</p>
+    </div>
+    <div class="card"><p class="sec-title">🏆 销售业绩排行（按负责人）</p>
+      ${Object.keys(owners).length?`<table><thead><tr><th>负责人</th><th>分配</th><th>跟进中</th><th>成交</th><th>成交率</th></tr></thead><tbody>${lb}</tbody></table>`:'<div class="empty">暂无负责人分配，在客户详情中填写「负责人」即可上榜。</div>'}
+    </div>
+  </div>`;
+}
+
+/* ---------- DASHBOARD ---------- */
+function renderDash(){
+  const total=DATA.length;
+  const withEmail=DATA.filter(d=>d.email).length;
+  const active=DATA.filter(d=>d.bizStatus==='存续'||d.bizStatus==='在业').length;
+  const provinces=new Set(DATA.map(d=>d.province).filter(Boolean)).size;
+  const provCount={}, indCount={}, bizCount={}, yearCount={};
+  DATA.forEach(d=>{
+    provCount[d.province]=(provCount[d.province]||0)+1;
+    if(d.industry) indCount[d.industry]=(indCount[d.industry]||0)+1;
+    if(d.bizStatus) bizCount[d.bizStatus]=(bizCount[d.bizStatus]||0)+1;
+    const y=(d.establishDate||'').slice(0,4); if(y) yearCount[y]=(yearCount[y]||0)+1;
+  });
+  const topProv=Object.entries(provCount).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const topInd=Object.entries(indCount).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const maxProv=topProv[0][1], maxInd=topInd[0][1];
+
+  const html=`
+  <div class="grid kpis">
+    <div class="card kpi"><div class="label">线索总量</div><div class="val">${total.toLocaleString()}</div><div class="foot">家企业客户</div></div>
+    <div class="card kpi"><div class="label">覆盖省份</div><div class="val">${provinces}</div><div class="foot">全国分布</div></div>
+    <div class="card kpi"><div class="label">含手机号</div><div class="val">${total.toLocaleString()}</div><div class="foot">100% 可触达</div></div>
+    <div class="card kpi"><div class="label">含邮箱</div><div class="val">${withEmail.toLocaleString()}</div><div class="foot">占比 ${Math.round(withEmail/total*100)}%</div></div>
+    <div class="card kpi"><div class="label">存续/在业</div><div class="val">${active.toLocaleString()}</div><div class="foot">占比 ${Math.round(active/total*100)}%</div></div>
+  </div>
+
+  <div class="grid two" style="margin-top:16px">
+    <div class="card">
+      <p class="sec-title">📍 省份分布 TOP10 <small>点击柱条可筛选线索</small></p>
+      ${topProv.map(([k,v])=>`
+        <div class="bar-row" onclick="jumpProvince('${k}')">
+          <div class="bar-name">${k}</div>
+          <div class="bar-track"><div class="bar-fill" style="width:${v/maxProv*100}%"></div></div>
+          <div class="bar-val">${v}</div>
+        </div>`).join('')}
+    </div>
+    <div class="card">
+      <p class="sec-title">🏢 经营状态分布</p>
+      <div class="donut-wrap">
+        ${donut(bizCount)}
+        <div class="legend">
+          ${Object.entries(bizCount).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`
+            <div class="li"><span class="dot" style="background:${bizHex(k)}"></span>${k} <b style="margin-left:4px">${v}</b></div>`).join('')}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid two" style="margin-top:16px">
+    <div class="card">
+      <p class="sec-title">🐾 行业分布 TOP8</p>
+      ${topInd.map(([k,v])=>`
+        <div class="bar-row" onclick="jumpIndustry('${k.replace(/'/g,"\\'")}')">
+          <div class="bar-name">${k}</div>
+          <div class="bar-track"><div class="bar-fill" style="width:${v/maxInd*100}%"></div></div>
+          <div class="bar-val">${v}</div>
+        </div>`).join('')}
+    </div>
+    <div class="card">
+      <p class="sec-title">📅 成立年份分布</p>
+      ${Object.entries(yearCount).sort().map(([k,v])=>`
+        <div class="bar-row">
+          <div class="bar-name">${k}年</div>
+          <div class="bar-track"><div class="bar-fill" style="width:${v/Math.max(...Object.values(yearCount))*100}%"></div></div>
+          <div class="bar-val">${v}</div>
+        </div>`).join('')}
+      <p class="hint" style="margin-top:10px">数据以 2025 年新设宠物企业为主，线索新鲜度高，适合首批开发。</p>
+    </div>
+  </div>`;
+  document.getElementById('view').innerHTML=html;
+}
+function bizHex(k){return {'存续':'#19a974','在业':'#15b9a6','注销':'#94a3b8','撤销':'#e5533c','迁出':'#f08a24'}[k]||'#ccc';}
+function donut(counts){
+  const entries=Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+  const total=entries.reduce((s,e)=>s+e[1],0);
+  const r=52,c=2*Math.PI*r; let off=0;
+  const segs=entries.map(([k,v])=>{
+    const frac=v/total; const len=frac*c;
+    const seg=`<circle r="${r}" cx="64" cy="64" fill="none" stroke="${bizHex(k)}" stroke-width="20" stroke-dasharray="${len} ${c-len}" stroke-dashoffset="${-off}" transform="rotate(-90 64 64)"></circle>`;
+    off+=len; return seg;
+  }).join('');
+  return `<svg width="128" height="128" viewBox="0 0 128 128">${segs}<text x="64" y="60" text-anchor="middle" font-size="20" font-weight="800" fill="#1f2733">${total}</text><text x="64" y="78" text-anchor="middle" font-size="11" fill="#6b7785">企业</text></svg>`;
+}
+function jumpProvince(p){ state.province=p; state.city=''; state.tab='leads'; render(); }
+function jumpIndustry(i){ state.industry=i; state.tab='leads'; render(); }
+
+/* ---------- LEADS ---------- */
+function uniqueSorted(key){ return [...new Set(DATA.map(d=>d[key]).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'zh')); }
+function cityOptions(){
+  if(!state.province) return uniqueSorted('city');
+  return [...new Set(DATA.filter(d=>d.province===state.province).map(d=>d.city).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'zh'));
+}
+function renderLeads(onlyMine){
+  const provinces=uniqueSorted('province');
+  const industries=uniqueSorted('industry');
+  const bizStats=Object.keys(BIZ_COLOR);
+  const cities=cityOptions();
+  const toolbar=`
+  <div class="toolbar">
+    <input class="search" id="fSearch" placeholder="🔍 搜索企业名称 / 手机号 / 法人 / 信用代码 / 行业…" value="${state.search}">
+    <select id="fProvince"><option value="">全部省份</option>${provinces.map(p=>`<option ${p===state.province?'selected':''}>${p}</option>`).join('')}</select>
+    <select id="fCity"><option value="">全部城市</option>${cities.map(c=>`<option ${c===state.city?'selected':''}>${c}</option>`).join('')}</select>
+    <select id="fIndustry"><option value="">全部行业</option>${industries.map(i=>`<option ${i===state.industry?'selected':''}>${i}</option>`).join('')}</select>
+    <select id="fBiz"><option value="">经营状态</option>${bizStats.map(b=>`<option ${b===state.bizStatus?'selected':''}>${b}</option>`).join('')}</select>
+    <select id="fLead"><option value="">线索状态</option>${LEAD_STATUSES.map(s=>`<option ${s===state.leadStatus?'selected':''}>${s}</option>`).join('')}</select>
+    <select id="fPri"><option value="">优先级</option>${PRIORITIES.map(p=>`<option ${p===state.priority?'selected':''}>${p}</option>`).join('')}</select>
+    <button class="btn ghost" id="btnReset">重置</button>
+    <button class="btn" id="btnExport">⬇ 导出CSV</button>
+  </div>`;
+
+  // bind events after insert
+  document.getElementById('view').innerHTML = toolbar + `<div id="tableHost"></div>`;
+  document.getElementById('fSearch').addEventListener('input',e=>{state.search=e.target.value;state.page=1;renderTableHost(onlyMine);});
+  document.getElementById('fProvince').addEventListener('change',e=>{state.province=e.target.value;state.city='';state.page=1;renderLeads(onlyMine);});
+  document.getElementById('fCity').addEventListener('change',e=>{state.city=e.target.value;state.page=1;renderTableHost(onlyMine);});
+  document.getElementById('fIndustry').addEventListener('change',e=>{state.industry=e.target.value;state.page=1;renderTableHost(onlyMine);});
+  document.getElementById('fBiz').addEventListener('change',e=>{state.bizStatus=e.target.value;state.page=1;renderTableHost(onlyMine);});
+  document.getElementById('fLead').addEventListener('change',e=>{state.leadStatus=e.target.value;state.page=1;renderTableHost(onlyMine);});
+  document.getElementById('fPri').addEventListener('change',e=>{state.priority=e.target.value;state.page=1;renderTableHost(onlyMine);});
+  document.getElementById('btnReset').addEventListener('click',()=>{Object.assign(state,{search:'',province:'',city:'',industry:'',bizStatus:'',leadStatus:'',priority:'',page:1});renderLeads(onlyMine);});
+  document.getElementById('btnExport').addEventListener('click',()=>exportCSV(onlyMine));
+  renderTableHost(onlyMine);
+}
+function renderTableHost(onlyMine){
+  let arr=applyFilters(onlyMine);
+  arr=sortRecs(arr);
+  const total=arr.length;
+  const pages=Math.max(1,Math.ceil(total/state.pageSize));
+  if(state.page>pages)state.page=pages;
+  const start=(state.page-1)*state.pageSize;
+  const pageArr=arr.slice(start,start+state.pageSize);
+  const sortMark=(k)=>state.sort===k?' ▾':'';
+  const head=`<table><thead><tr>
+    <th onclick="setSort('name')">企业名称${sortMark('name')}</th>
+    <th onclick="setSort('province')">地区${sortMark('province')}</th>
+    <th>行业</th>
+    <th>经营状态</th>
+    <th>电话</th>
+    <th>法人</th>
+    <th>线索状态</th>
+    <th>操作</th>
+  </tr></thead><tbody>`;
+  let body;
+  if(pageArr.length===0){
+    body=`<tr><td colspan="8"><div class="empty">没有符合条件的线索</div></td></tr>`;
+  } else {
+    body=pageArr.map(d=>{
+      const l=getLead(d.id); const ls=l?l.leadStatus:'待开发'; const pr=l?l.priority:'中';
+      return `<tr onclick="openDetail(${d.id})">
+        <td><b>${d.name}</b></td>
+        <td>${d.province||''} ${d.city||''}</td>
+        <td>${d.industry||'<span class="hint">—</span>'}</td>
+        <td><span class="tag ${BIZ_COLOR[d.bizStatus]||'t-gray'}">${d.bizStatus||'—'}</span></td>
+        <td>${d.phone?`<a href="javascript:copyText('${d.phone}')" onclick="event.stopPropagation()">${d.phone}</a>`:'—'}</td>
+        <td>${d.legal||'—'}</td>
+        <td><span class="tag ${LEAD_COLOR[ls]}">${ls}</span> ${pr!=='中'?`<span class="tag t-orange">${pr}</span>`:''}</td>
+        <td><button class="btn mini ghost" onclick="event.stopPropagation();openDetail(${d.id})">跟进</button></td>
+      </tr>`;
+    }).join('');
+  }
+  const table=head+body+`</tbody></table>`;
+  const pager=`<div class="pager"><span class="hint">共 ${total.toLocaleString()} 条 · 第 ${state.page}/${pages} 页</span>
+    <button class="btn ghost mini" onclick="goPage(-1)">上一页</button>
+    <button class="btn ghost mini" onclick="goPage(1)">下一页</button></div>`;
+  document.getElementById('tableHost').innerHTML=table+pager;
+}
+function setSort(s){ state.sort=s; state.page=1; const onlyMine=state.tab==='mine'; renderTableHost(onlyMine); }
+function goPage(d){ state.page+=d; const onlyMine=state.tab==='mine'; renderTableHost(onlyMine); }
+
+/* ---------- DETAIL ---------- */
+function openDetail(id){
+  const d=DATA.find(x=>x.id===id); if(!d)return;
+  const l=getLead(id)||{leadStatus:'待开发',priority:'中',owner:'',nextDate:'',notes:[]};
+  document.getElementById('dName').textContent=d.name;
+  document.getElementById('dSub').innerHTML=`<span class="tag ${BIZ_COLOR[d.bizStatus]||'t-gray'}">${d.bizStatus||'—'}</span> &nbsp;${d.province||''} ${d.city||''} ${d.district||''}`;
+  const fld=(k,v)=>`<div class="field"><div class="k">${k}</div><div class="v">${v||'<span class="hint">—</span>'}</div></div>`;
+  const notesHtml=(l.notes&&l.notes.length)?l.notes.slice().reverse().map(n=>`<div class="tl-item"><div class="t">${n.t}</div><div class="x">${escapeHtml(n.text)}</div></div>`).join(''):`<div class="hint">暂无跟进记录，添加第一条吧。</div>`;
+  document.getElementById('dBody').innerHTML=`
+    <div class="sec-title">📞 联系方式</div>
+    <div class="field-grid">
+      ${fld('电话', d.phone?`<a href="javascript:copyText('${d.phone}')">${d.phone}</a>`:'')}
+      ${fld('邮箱', d.email?`<a href="javascript:copyText('${d.email}')">${d.email}</a>`:'')}
+      ${fld('网址', d.website?`<a href="javascript:copyText('${d.website}')">${d.website}</a>`:'')}
+      ${fld('法人', d.legal)}
+    </div>
+
+    <div class="sec">
+      <div class="sec-title">🗂 跟进管理</div>
+      <div class="fm-row">
+        <select id="dLead"><option>待开发</option>${LEAD_STATUSES.slice(1).map(s=>`<option ${l.leadStatus===s?'selected':''}>${s}</option>`).join('')}</select>
+        <select id="dPri">${PRIORITIES.map(p=>`<option ${l.priority===p?'selected':''}>${p}优先级</option>`).join('')}</select>
+        <input class="owner" id="dOwner" placeholder="负责人" value="${l.owner||''}">
+        <input type="date" id="dNext" value="${l.nextDate||''}">
+      </div>
+      <div class="fm-row">
+        <button class="btn" onclick="saveFollow(${id})">💾 保存跟进信息</button>
+        <button class="btn ghost" onclick="copyCard(${id})">📋 复制名片</button>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-title">📝 添加跟进记录</div>
+      <textarea id="dNote" placeholder="例如：今日电话联系，对方为采购负责人，对宠物食品批发有兴趣，约定下周寄样…"></textarea>
+      <div style="margin-top:8px"><button class="btn" onclick="addNote(${id})">➕ 添加记录</button></div>
+      <div class="timeline">${notesHtml}</div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-title">🏛 工商信息</div>
+      <div class="field-grid">
+        ${fld('统一社会信用代码', d.creditCode)}
+        ${fld('纳税人识别号', d.taxId)}
+        ${fld('注册号', d.regNo)}
+        ${fld('组织机构代码', d.orgCode)}
+        ${fld('注册资本', d.regCapital)}
+        ${fld('实缴资本', d.paidCapital)}
+        ${fld('成立时间', d.establishDate)}
+        ${fld('核准日期', d.approvalDate)}
+        ${fld('营业期限', d.term)}
+        ${fld('参保人数', d.insured)}
+        ${fld('机构类型', d.orgType)}
+        ${fld('经济类型', d.econType)}
+        ${fld('所属行业', d.industry)}
+        ${fld('曾用名', d.formerName)}
+        ${fld('所属地区', (d.province||'')+(d.city||'')+(d.district||''))}
+      </div>
+      ${fld('注册地址', d.regAddr)}
+      ${fld('最新年报地址', d.reportAddr)}
+      <div style="margin-top:8px" class="field"><div class="k">经营范围</div><div class="v" style="font-weight:400;line-height:1.7">${d.scope||'—'}</div></div>
+    </div>`;
+  document.getElementById('mask').classList.add('show');
+  document.getElementById('drawer').classList.add('show');
+}
+function saveFollow(id){
+  const lead=document.getElementById('dLead').value;
+  const pri=document.getElementById('dPri').value.replace('优先级','');
+  const owner=document.getElementById('dOwner').value.trim();
+  const next=document.getElementById('dNext').value;
+  setLead(id,{leadStatus:lead,priority:pri,owner:owner,nextDate:next});
+  toast('已保存跟进信息');
+  render();
+}
+function addNote(id){
+  const ta=document.getElementById('dNote'); const txt=ta.value.trim();
+  if(!txt){toast('请输入跟进内容');return;}
+  const l=getLead(id)||{leadStatus:'待开发',priority:'中',owner:'',nextDate:'',notes:[]};
+  l.notes=l.notes||[];
+  l.notes.push({t:new Date().toLocaleString('zh-CN'),text:txt});
+  setLead(id,l);
+  ta.value='';
+  openDetail(id); render();
+  toast('已添加跟进记录');
+}
+function copyCard(id){
+  const d=DATA.find(x=>x.id===id); if(!d)return;
+  const lines=[`${d.name}`,`电话：${d.phone||''}`,`邮箱：${d.email||''}`,`法人：${d.legal||''}`,`地区：${[d.province,d.city,d.district].filter(Boolean).join(' ')}`,`行业：${d.industry||''}`,`经营状态：${d.bizStatus||''}`,`注册地址：${d.regAddr||''}`];
+  copyText(lines.join('\n'));
+}
+document.getElementById('dClose').addEventListener('click',closeDrawer);
+document.getElementById('mask').addEventListener('click',closeDrawer);
+function closeDrawer(){document.getElementById('mask').classList.remove('show');document.getElementById('drawer').classList.remove('show');}
+function escapeHtml(s){return (s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])).replace(/"/g,'&quot;');}
+
+/* ---------- EXPORT ---------- */
+function exportCSV(onlyMine){
+  let arr=applyFilters(onlyMine); arr=sortRecs(arr);
+  const head=['企业名称','省份','城市','区县','行业','经营状态','电话','法人','邮箱','注册资本','成立时间','线索状态','优先级','负责人','下次跟进','跟进记录数'];
+  const rows=arr.map(d=>{const l=getLead(d.id)||{};return [d.name,d.province,d.city,d.district,d.industry,d.bizStatus,d.phone,d.legal,d.email,d.regCapital,d.establishDate,l.leadStatus||'待开发',l.priority||'中',l.owner||'',l.nextDate||'',(l.notes?l.notes.length:0)];});
+  const csv='\ufeff'+[head,...rows].map(r=>r.map(c=>`"${String(c||'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download=`宠物客户线索_${onlyMine?'我的跟进':'全部'}_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click(); toast('已导出 '+arr.length+' 条');
+}
+
+/* ---------- toast ---------- */
+let toastTimer;
+function toast(msg){
+  let t=document.getElementById('toast');
+  if(!t){t=document.createElement('div');t.id='toast';t.style.cssText='position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:#1f2733;color:#fff;padding:10px 18px;border-radius:10px;font-size:13px;z-index:99;box-shadow:0 8px 24px rgba(0,0,0,.25)';document.body.appendChild(t);}
+  t.textContent=msg; t.style.opacity='1';
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.style.opacity='0',1800);
+}
+
+/* ---------- tabs & init ---------- */
+document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{state.tab=t.dataset.tab;state.page=1;render();}));
+if(DATA.length){
+  document.getElementById('totalBadge').textContent=DATA.length.toLocaleString()+' 家企业';
+  initStore().then(render);
+} else {
+  document.getElementById('view').innerHTML='<div class="empty">数据加载失败，请确认 crm-data.js 与本页面在同一目录。</div>';
+}
+</script>
+</body>
+</html>

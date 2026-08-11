@@ -1,0 +1,13 @@
+{
+  "name": "pet-crm",
+  "version": "1.0.0",
+  "description": "全国宠物行业客户线索 CRM：静态前端 + Node 零依赖后端（共享存储 + SSE 实时推送）",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "private": true
+}
