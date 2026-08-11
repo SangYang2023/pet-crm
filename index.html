@@ -181,6 +181,7 @@ const LEAD_COLOR = {'待开发':'t-gray','跟进中':'t-blue','已成交':'t-gre
 let store = {};
 let online = false;
 let IS_ADMIN = false;
+let ME = '';                           // 当前登录账号名（业务员）
 let es = null;                       // SSE 连接
 const MY_ID = Math.random().toString(36).slice(2);  // 本客户端唯一标识
 let lsCount = 0;                     // 实时同步到的更新次数
@@ -243,7 +244,7 @@ function applyFilters(){
     const l=getLead(d.id);
     if(onlyDisabled){ if(!l || !l.disabled) return false; }
     else if(l && l.disabled) return false;
-    if(onlyMine){ if(!l || !l.leadStatus || l.leadStatus==='待开发') return false; }
+    if(onlyMine){ if(!l || (l.owner||'')!==ME) return false; }
     if(state.province && d.province!==state.province) return false;
     if(state.city){
       const isMuni = MUNICIPALITIES.includes(state.province);
@@ -283,7 +284,7 @@ function render(){
   else if(state.tab==='funnel') renderFunnel();
   else if(state.tab==='leads' || state.tab==='mine' || state.tab==='disabled') renderLeads();
 }
-function countMine(){ let n=0; for(const d of DATA){const l=getLead(d.id); if(l&&!l.disabled&&l.leadStatus&&l.leadStatus!=='待开发')n++;} return n; }
+function countMine(){ let n=0; for(const d of DATA){const l=getLead(d.id); if(l&&!l.disabled&&(l.owner||'')===ME)n++;} return n; }
 function countDisabled(){ let n=0; for(const d of DATA){const l=getLead(d.id); if(l&&l.disabled)n++;} return n; }
 
 /* ---------- 转化漏斗 & 销售业绩 ---------- */
@@ -664,7 +665,7 @@ function toast(msg){
 
 /* ---------- 登录鉴权 ---------- */
 async function checkAuth(){
-  try{ const r=await fetch('/api/me'); if(r.ok){ const j=await r.json(); IS_ADMIN=!!j.isAdmin; return j.user||null; } }catch(e){}
+  try{ const r=await fetch('/api/me'); if(r.ok){ const j=await r.json(); IS_ADMIN=!!j.isAdmin; ME=j.user||''; return j.user||null; } }catch(e){}
   return null;
 }
 function showLogin(){
