@@ -253,7 +253,7 @@ function applyFilters(){
     if(state.district && d.district!==state.district) return false;
     if(state.industry && d.industry!==state.industry) return false;
     if(state.bizStatus && d.bizStatus!==state.bizStatus) return false;
-    if(state.leadStatus){ const l=getLead(d.id); const ls=(l&&l.leadStatus)||'待开发'; if(ls!==state.leadStatus) return false; }
+    if(state.leadStatus){ const l=getLead(d.id); const ls=(l&&l.leadStatus&&l.leadStatus!=='undefined')?l.leadStatus:'待开发'; if(ls!==state.leadStatus) return false; }
     if(state.priority){ const l=getLead(d.id); if((l?l.priority:'中')!==state.priority) return false; }
     if(q){
       const hay=(d.name+' '+d.phone+' '+d.legal+' '+d.creditCode+' '+d.industry+' '+d.city+' '+d.district+' '+d.email).toLowerCase();
@@ -293,7 +293,7 @@ function renderFunnel(){
   const owners={};
   const activeData = DATA.filter(d=>{ const l=getLead(d.id); return !(l && l.disabled); });
   activeData.forEach(d=>{
-    const l=getLead(d.id); const ls=(l&&l.leadStatus)||'待开发';
+    const l=getLead(d.id); const ls=(l&&l.leadStatus&&l.leadStatus!=='undefined')?l.leadStatus:'待开发';
     counts[ls]=(counts[ls]||0)+1;
     const ow=(l&&l.owner||'').trim();
     if(ow){ if(!owners[ow])owners[ow]={total:0,deal:0,follow:0}; owners[ow].total++; if(ls==='已成交')owners[ow].deal++; if(ls==='跟进中')owners[ow].follow++; }
@@ -489,7 +489,7 @@ function renderTableHost(){
     body=`<tr><td colspan="${showCheck?10:9}"><div class="empty">${emptyMsg}</div></td></tr>`;
   } else {
     body=pageArr.map(d=>{
-      const l=getLead(d.id); const ls=(l&&l.leadStatus)||'待开发'; const pr=l?l.priority:'中';
+      const l=getLead(d.id); const ls=(l&&l.leadStatus&&l.leadStatus!=='undefined')?l.leadStatus:'待开发'; const pr=l?l.priority:'中';
       let opBtn;
       if(state.tab==='disabled'){
         if(IS_ADMIN) opBtn=`<button class="btn mini" style="background:var(--green);color:#fff" onclick="event.stopPropagation();enableLead(${d.id})">启用</button>`;

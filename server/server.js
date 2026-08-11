@@ -31,7 +31,18 @@ const DATA_FILE = path.join(DATA_DIR, 'followups.json');
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
 function readStore() {
-  try { return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')); }
+  try { 
+    const obj = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+    // 自动修复脏数据：leadStatus 为 undefined/"undefined"/空 时修正为"待开发"
+    let dirty = false;
+    for (const k of Object.keys(obj)) {
+      const v = obj[k];
+      if (!v || typeof v !== 'object') continue;
+      if (!v.leadStatus || v.leadStatus === 'undefined') { v.leadStatus = '待开发'; dirty = true; }
+    }
+    if (dirty) writeStore(obj);
+    return obj; 
+  }
   catch (e) { return {}; }
 }
 function writeStore(obj) {
