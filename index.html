@@ -487,12 +487,13 @@ function renderTableHost(){
     <th>电话</th>
     <th>法人</th>
     <th>线索状态</th>
+    <th>业务员归属</th>
     <th>操作</th>
   </tr></thead><tbody>`;
   let body;
   if(pageArr.length===0){
     const emptyMsg = state.tab==='disabled' ? '停用库为空，暂无已停用的客户' : '没有符合条件的线索';
-    body=`<tr><td colspan="8"><div class="empty">${emptyMsg}</div></td></tr>`;
+    body=`<tr><td colspan="9"><div class="empty">${emptyMsg}</div></td></tr>`;
   } else {
     body=pageArr.map(d=>{
       const l=getLead(d.id); const ls=l?l.leadStatus:'待开发'; const pr=l?l.priority:'中';
@@ -505,12 +506,13 @@ function renderTableHost(){
       }
       return `<tr onclick="openDetail(${d.id})">
         <td><b>${d.name}</b></td>
-        <td>${(function(){ const p=d.province||'', c=d.city||'', ds=d.district||''; if(MUNICIPALITIES.includes(p)) return p+' '+ds; return p+' '+c+(ds?(' '+ds):''); })()}</td>
+        <td>${(function(){ const p=d.province||'', c=d.city||'', ds=d.district||''; const parts=[p]; if(c) parts.push(c); if(ds) parts.push(ds); return parts.join(' '); })()}</td>
         <td>${d.industry||'<span class="hint">—</span>'}</td>
         <td><span class="tag ${BIZ_COLOR[d.bizStatus]||'t-gray'}">${d.bizStatus||'—'}</span></td>
         <td>${d.phone?`<a href="javascript:copyText('${d.phone}')" onclick="event.stopPropagation()">${d.phone}</a>`:'—'}</td>
         <td>${d.legal||'—'}</td>
         <td><span class="tag ${LEAD_COLOR[ls]}">${ls}</span> ${pr!=='中'?`<span class="tag t-orange">${pr}</span>`:''}</td>
+        <td>${(l&&l.owner)?`<span class="tag t-blue">${l.owner}</span>`:'<span class="hint">—</span>'}</td>
         <td>${opBtn}</td>
       </tr>`;
     }).join('');
