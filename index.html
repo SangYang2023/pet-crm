@@ -78,7 +78,7 @@
   .sec{border-top:1px solid var(--line);margin-top:18px;padding-top:16px}
   .fm-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
   .fm-row select,.fm-row input{height:36px;border:1px solid var(--line);border-radius:8px;padding:0 10px;font-size:13px}
-  .fm-row input.owner{flex:1;min-width:120px}
+  .fm-row input.owner, .fm-row select.owner{flex:1;min-width:120px}
   textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:10px;font-size:13px;font-family:inherit;resize:vertical;min-height:64px}
   .timeline{margin-top:12px;display:flex;flex-direction:column;gap:10px}
   .tl-item{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:#fafbfd}
@@ -146,6 +146,7 @@ const META = window.CRM_META || {};
 const STORE_KEY = 'petCrmFollow_v1';
 const LEAD_STATUSES = ['待开发','跟进中','已成交','已流失','已放弃'];
 const PRIORITIES = ['高','中','低'];
+const OWNERS = ['邱小波','何柯','王雄','蒲斌','杨兰香','阳云霞','张冲','刘长春','赵静'];
 const BIZ_COLOR = {'存续':'t-green','在业':'t-teal','注销':'t-gray','撤销':'t-red','迁出':'t-orange'};
 const LEAD_COLOR = {'待开发':'t-gray','跟进中':'t-blue','已成交':'t-green','已流失':'t-red','已放弃':'t-purple'};
 
@@ -469,7 +470,7 @@ function openDetail(id){
       <div class="fm-row">
         <select id="dLead"><option>待开发</option>${LEAD_STATUSES.slice(1).map(s=>`<option ${l.leadStatus===s?'selected':''}>${s}</option>`).join('')}</select>
         <select id="dPri">${PRIORITIES.map(p=>`<option ${l.priority===p?'selected':''}>${p}优先级</option>`).join('')}</select>
-        <input class="owner" id="dOwner" placeholder="负责人" value="${l.owner||''}">
+        <select class="owner" id="dOwner"><option value="">未分配</option>${OWNERS.map(o=>`<option ${l.owner===o?'selected':''}>${o}</option>`).join('')}</select>
         <input type="date" id="dNext" value="${l.nextDate||''}">
       </div>
       <div class="fm-row">
