@@ -147,10 +147,12 @@
       <select id="bScope">
         <option value="all">全部客户</option>
         <option value="province">按省份</option>
+        <option value="provinceCity">按省份+城市</option>
         <option value="industry">按行业</option>
         <option value="bizStatus">按经营状态</option>
       </select>
       <select id="bScopeVal" style="display:none"></select>
+      <select id="bScopeCity" style="display:none"></select>
       <label>指派给业务员</label>
       <select id="bOwner"></select>
       <div class="batch-preview" id="bPreview"></div>
@@ -634,22 +636,41 @@ async function doLogout(){
 /* ---------- 批量分配（管理员） ---------- */
 function openBatchAssign(){
   const m=document.getElementById('batchMask'); if(m) m.classList.add('show');
-  const scope=document.getElementById('bScope'), sv=document.getElementById('bScopeVal'), ow=document.getElementById('bOwner');
+  const scope=document.getElementById('bScope'), sv=document.getElementById('bScopeVal'), sc=document.getElementById('bScopeCity'), ow=document.getElementById('bOwner');
   scope.onchange=()=>{
-    sv.innerHTML='';
+    sv.innerHTML=''; sc.innerHTML='';
     const v=scope.value;
-    if(v==='all'){ sv.style.display='none'; updateBatchPreview(); return; }
-    sv.style.display='block';
-    let opts=[];
-    if(v==='province') opts=uniqueSorted('province');
-    else if(v==='industry') opts=uniqueSorted('industry');
-    else if(v==='bizStatus') opts=Object.keys(BIZ_COLOR);
-    sv.innerHTML='<option value="">请选择…</option>'+opts.map(o=>`<option>${o}</option>`).join('');
-    sv.onchange=updateBatchPreview;
+    if(v==='all' || v==='provinceCity'){ sv.style.display=(v==='all'?'none':'block'); sc.style.display='none'; }
+    else { sv.style.display='block'; sc.style.display='none'; }
+    if(v==='all'){ updateBatchPreview(); return; }
+    if(v==='province'){
+      const opts=uniqueSorted('province');
+      sv.innerHTML='<option value="">请选择省份…</option>'+opts.map(o=>`<option>${o}</option>`).join('');
+    } else if(v==='provinceCity'){
+      const provs=uniqueSorted('province');
+      sv.innerHTML='<option value="">请选择省份…</option>'+provs.map(p=>`<option>${p}</option>`).join('');
+    } else if(v==='industry'){
+      const opts=uniqueSorted('industry');
+      sv.innerHTML='<option value="">请选择…</option>'+opts.map(o=>`<option>${o}</option>`).join('');
+    } else if(v==='bizStatus'){
+      sv.innerHTML='<option value="">请选择…</option>'+Object.keys(BIZ_COLOR).map(o=>`<option>${o}</option>`).join('');
+    }
+    sv.onchange=()=>{
+      if(v==='provinceCity'){
+        const p=sv.value; sc.style.display=p?'block':'none';
+        if(p){
+          const cities=[...new Set(DATA.filter(d=>d.province===p).map(d=>d.city).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'zh'));
+          sc.innerHTML='<option value="">请选择城市…</option>'+cities.map(c=>`<option>${c}</option>`).join('');
+          sc.onchange=updateBatchPreview;
+        }
+      }
+      updateBatchPreview();
+    };
+    sc.onchange=updateBatchPreview;
     updateBatchPreview();
   };
   ow.onchange=updateBatchPreview;
-  scope.value='all'; sv.style.display='none'; sv.innerHTML='';
+  scope.value='all'; sv.style.display='none'; sc.style.display='none'; sv.innerHTML=''; sc.innerHTML='';
   ow.innerHTML=OWNERS.map(o=>`<option>${o}</option>`).join('');
   ow.value=OWNERS[0];
   updateBatchPreview();
@@ -658,10 +679,12 @@ function closeBatch(){ const m=document.getElementById('batchMask'); if(m) m.cla
 function batchMatchIds(){
   const v=document.getElementById('bScope').value;
   const sv=document.getElementById('bScopeVal').value;
+  const sc=document.getElementById('bScopeCity').value;
   const ids=[];
   for(const d of DATA){
     if(v==='all') ids.push(d.id);
     else if(v==='province' && sv && d.province===sv) ids.push(d.id);
+    else if(v==='provinceCity' && sv && sc && d.province===sv && d.city===sc) ids.push(d.id);
     else if(v==='industry' && sv && d.industry===sv) ids.push(d.id);
     else if(v==='bizStatus' && sv && d.bizStatus===sv) ids.push(d.id);
   }
