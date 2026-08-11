@@ -245,6 +245,11 @@ function applyFilters(){
     if(onlyDisabled){ if(!l || !l.disabled) return false; }
     else if(l && l.disabled) return false;
     if(onlyMine){ if(!l || (l.owner||'')!==ME) return false; }
+    // 线索库：非管理员只能看「未分配」或「分配给本人」的客户，分配给别人的对其隐藏
+    if(mode==='leads' && !IS_ADMIN){
+      const owner = l ? (l.owner||'') : '';
+      if(owner && owner!==ME) return false;
+    }
     if(state.province && d.province!==state.province) return false;
     if(state.city){
       const isMuni = MUNICIPALITIES.includes(state.province);
