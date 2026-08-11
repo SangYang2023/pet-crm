@@ -5,7 +5,25 @@ const path = require('path');
 const crypto = require('crypto');
 
 const PORT = process.env.PORT || 8778;
-const STATIC_DIR = path.join(__dirname, '..');          // pet-crm/
+// 静态文件目录：优先用环境变量，否则从 server.js 所在目录向上找（兼容本地和 PaaS 部署）
+function findStaticDir() {
+  if (process.env.STATIC_DIR) return path.resolve(process.env.STATIC_DIR);
+  // 尝试多个可能位置
+  const candidates = [
+    path.join(__dirname, '..'),           // server/ 的父目录（本地开发）
+    path.join(process.cwd()),             // 工作目录（大多数 PaaS 默认）
+    '/opt/render/project/src',            // Render 典型路径
+    '/app',                               // Docker / 某些 PaaS
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(path.join(c, 'index.html'))) return c;
+  }
+  // 最后回退
+  return path.join(__dirname, '..');
+}
+const STATIC_DIR = findStaticDir();
+console.log('[CRM] STATIC_DIR =', STATIC_DIR);
+console.log('[CRM] index.html exists:', fs.existsSync(path.join(STATIC_DIR, 'index.html')));
 // 数据目录：默认存 server/data/；部署时可设 DATA_DIR 指向持久盘（Render Disk / Railway Volume）
 const DATA_DIR = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.join(__dirname, 'data');
 const DATA_FILE = path.join(DATA_DIR, 'followups.json');
