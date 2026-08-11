@@ -255,7 +255,11 @@ function applyFilters(){
     else if(l && l.disabled) return false;
     if(onlyMine){ if(!l || !l.leadStatus || l.leadStatus==='待开发') return false; }
     if(state.province && d.province!==state.province) return false;
-    if(state.city && d.city!==state.city) return false;
+    if(state.city){
+      const isMuni = MUNICIPALITIES.includes(state.province);
+      if(isMuni && d.district!==state.city) return false;
+      if(!isMuni && d.city!==state.city) return false;
+    }
     if(state.industry && d.industry!==state.industry) return false;
     if(state.bizStatus && d.bizStatus!==state.bizStatus) return false;
     if(state.leadStatus){ const l=getLead(d.id); const ls=l?l.leadStatus:'待开发'; if(ls!==state.leadStatus) return false; }
@@ -413,9 +417,14 @@ function jumpProvince(p){ state.province=p; state.city=''; state.tab='leads'; re
 function jumpIndustry(i){ state.industry=i; state.tab='leads'; render(); }
 
 /* ---------- LEADS ---------- */
+const MUNICIPALITIES = ['北京市','天津市','上海市','重庆市'];
 function uniqueSorted(key){ return [...new Set(DATA.map(d=>d[key]).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'zh')); }
 function cityOptions(){
   if(!state.province) return uniqueSorted('city');
+  // 直辖市：province=city（如"北京市"），此时用 district 作为二级筛选
+  if(MUNICIPALITIES.includes(state.province)){
+    return [...new Set(DATA.filter(d=>d.province===state.province).map(d=>d.district).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'zh'));
+  }
   return [...new Set(DATA.filter(d=>d.province===state.province).map(d=>d.city).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'zh'));
 }
 function renderLeads(){
@@ -488,7 +497,7 @@ function renderTableHost(){
       }
       return `<tr onclick="openDetail(${d.id})">
         <td><b>${d.name}</b></td>
-        <td>${d.province||''} ${d.city||''}</td>
+        <td>${(function(){ const p=d.province||'', c=d.city||'', ds=d.district||''; if(MUNICIPALITIES.includes(p)) return p+' '+ds; return p+' '+c; })()}</td>
         <td>${d.industry||'<span class="hint">—</span>'}</td>
         <td><span class="tag ${BIZ_COLOR[d.bizStatus]||'t-gray'}">${d.bizStatus||'—'}</span></td>
         <td>${d.phone?`<a href="javascript:copyText('${d.phone}')" onclick="event.stopPropagation()">${d.phone}</a>`:'—'}</td>
@@ -704,7 +713,9 @@ function openBatchAssign(){
       if(v==='provinceCity'){
         const p=sv.value; sc.style.display=p?'block':'none';
         if(p){
-          const cities=[...new Set(DATA.filter(d=>d.province===p).map(d=>d.city).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'zh'));
+          const isMuni = MUNICIPALITIES.includes(p);
+          const field = isMuni ? 'district' : 'city';
+          const cities=[...new Set(DATA.filter(d=>d.province===p).map(d=>d[field]).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'zh'));
           sc.innerHTML='<option value="">请选择城市…</option>'+cities.map(c=>`<option>${c}</option>`).join('');
           sc.onchange=updateBatchPreview;
         }
@@ -729,7 +740,11 @@ function batchMatchIds(){
   for(const d of DATA){
     if(v==='all') ids.push(d.id);
     else if(v==='province' && sv && d.province===sv) ids.push(d.id);
-    else if(v==='provinceCity' && sv && sc && d.province===sv && d.city===sc) ids.push(d.id);
+    else if(v==='provinceCity' && sv && sc && d.province===sv){
+      const isMuni = MUNICIPALITIES.includes(sv);
+      if(isMuni && d.district===sc) ids.push(d.id);
+      else if(!isMuni && d.city===sc) ids.push(d.id);
+    }
     else if(v==='industry' && sv && d.industry===sv) ids.push(d.id);
     else if(v==='bizStatus' && sv && d.bizStatus===sv) ids.push(d.id);
   }
