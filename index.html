@@ -227,6 +227,14 @@ function syncRemote(id){
   fetch('/api/followups/'+id, {method:'PUT', headers:{'Content-Type':'application/json','X-Client-Id':MY_ID}, body:JSON.stringify(store[id]||{})}).catch(()=>{});
 }
 function getLead(id){ return store[id] || null; }
+// 当前登录用户是否可见该客户（与线索库规则一致：停用隐藏；非管理员只看未分配或本人）
+function recordVisibleToUser(d){
+  const l=getLead(d.id);
+  if(l && l.disabled) return false;
+  if(IS_ADMIN) return true;
+  const owner = l ? (l.owner||'') : '';
+  return !owner || owner===ME;
+}
 function setLead(id, patch){
   const cur = store[id] || {leadStatus:'待开发', priority:'中', owner:'', nextDate:'', notes:[], updated:''};
   Object.assign(cur, patch); cur.updated = new Date().toISOString();
@@ -297,7 +305,7 @@ function funnelColor(s){return {'待开发':'#94a3b8','跟进中':'#2f6df6','已
 function renderFunnel(){
   const counts={}; LEAD_STATUSES.forEach(s=>counts[s]=0);
   const owners={};
-  const activeData = DATA.filter(d=>{ const l=getLead(d.id); return !(l && l.disabled); });
+  const activeData = DATA.filter(d=>recordVisibleToUser(d));
   activeData.forEach(d=>{
     const l=getLead(d.id); const ls=(l&&l.leadStatus&&l.leadStatus!=='undefined')?l.leadStatus:'待开发';
     counts[ls]=(counts[ls]||0)+1;
@@ -329,12 +337,13 @@ function renderFunnel(){
 
 /* ---------- DASHBOARD ---------- */
 function renderDash(){
-  const total=DATA.length;
-  const withEmail=DATA.filter(d=>d.email).length;
-  const active=DATA.filter(d=>d.bizStatus==='存续'||d.bizStatus==='在业').length;
-  const provinces=new Set(DATA.map(d=>d.province).filter(Boolean)).size;
+  const VIS=DATA.filter(d=>recordVisibleToUser(d));
+  const total=VIS.length;
+  const withEmail=VIS.filter(d=>d.email).length;
+  const active=VIS.filter(d=>d.bizStatus==='存续'||d.bizStatus==='在业').length;
+  const provinces=new Set(VIS.map(d=>d.province).filter(Boolean)).size;
   const provCount={}, indCount={}, bizCount={}, yearCount={};
-  DATA.forEach(d=>{
+  VIS.forEach(d=>{
     provCount[d.province]=(provCount[d.province]||0)+1;
     if(d.industry) indCount[d.industry]=(indCount[d.industry]||0)+1;
     if(d.bizStatus) bizCount[d.bizStatus]=(bizCount[d.bizStatus]||0)+1;
