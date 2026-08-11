@@ -441,7 +441,7 @@ function renderLeads(){
     <select id="fLead"><option value="">线索状态</option>${LEAD_STATUSES.map(s=>`<option ${s===state.leadStatus?'selected':''}>${s}</option>`).join('')}</select>
     <select id="fPri"><option value="">优先级</option>${PRIORITIES.map(p=>`<option ${p===state.priority?'selected':''}>${p}</option>`).join('')}</select>
     <button class="btn ghost" id="btnReset">重置</button>
-    <button class="btn" id="btnExport">⬇ 导出CSV</button>
+    ${IS_ADMIN?'<button class="btn" id="btnExport">⬇ 导出CSV</button>':''}
     ${IS_ADMIN && !onlyDisabled?'<button class="btn ghost" id="btnSelAll" onclick="toggleSelectAll(true)">☑ 全选当前筛选</button><button class="btn warn" id="btnBatch" disabled style="opacity:0.5">👥 批量分配</button>':''}
   </div>`;
 
@@ -456,7 +456,7 @@ function renderLeads(){
   document.getElementById('fLead').addEventListener('change',e=>{state.leadStatus=e.target.value;state.page=1;renderTableHost();});
   document.getElementById('fPri').addEventListener('change',e=>{state.priority=e.target.value;state.page=1;renderTableHost();});
   document.getElementById('btnReset').addEventListener('click',()=>{Object.assign(state,{search:'',province:'',city:'',district:'',industry:'',bizStatus:'',leadStatus:'',priority:'',page:1});clearSelection();renderLeads();});
-  document.getElementById('btnExport').addEventListener('click',()=>exportCSV());
+  const be=document.getElementById('btnExport'); if(be) be.addEventListener('click',()=>exportCSV());
   if(IS_ADMIN && !onlyDisabled){ const bb=document.getElementById('btnBatch'); if(bb) bb.addEventListener('click',openBatchAssign); }
   renderTableHost();
   refreshBatchBtn();
