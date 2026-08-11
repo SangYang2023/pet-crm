@@ -98,8 +98,25 @@ async function restoreFromGitHub() {
     const f = await ghGetFile(GH_DATA_PATH);
     if (f && f.content) {
       const txt = Buffer.from(f.content, 'base64').toString('utf8');
-      fs.writeFileSync(DATA_FILE, txt, 'utf8');
-      console.log('[CRM] 已从 GitHub 恢复 followups.json（' + txt.length + ' 字节）');
+      // 立即清洗脏数据（leadStatus 为 undefined/"undefined"/空 → "待开发"），不等 readStore 触发
+      let obj;
+      try { obj = JSON.parse(txt); } catch(e) { obj = {}; }
+      let dirty = false;
+      for (const k of Object.keys(obj)) {
+        const v = obj[k];
+        if (!v || typeof v !== 'object') continue;
+        if (!v.leadStatus || v.leadStatus === 'undefined') { v.leadStatus = '待开发'; dirty = true; }
+      }
+      if (dirty) {
+        const cleanTxt = JSON.stringify(obj, null, 2);
+        fs.writeFileSync(DATA_FILE, cleanTxt, 'utf8');
+        console.log('[CRM] 已从 GitHub 恢复并清洗 followups.json（' + cleanTxt.length + ' 字节，修复 ' + dirty + ' 条脏数据）');
+        // 清洗后立即同步回 GitHub，防止下次再拉到脏数据
+        syncToGitHub('startup-cleanup').catch(()=>{});
+      } else {
+        fs.writeFileSync(DATA_FILE, txt, 'utf8');
+        console.log('[CRM] 已从 GitHub 恢复 followups.json（' + txt.length + ' 字节，无需清洗）');
+      }
     } else {
       console.log('[CRM] GitHub 上暂无数据文件，使用本地/部署版本');
     }
