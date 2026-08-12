@@ -143,6 +143,8 @@
   .modal-actions .btn{flex:1}
   .btn.warn{background:linear-gradient(120deg,#e8590c,#f08c00)}
   .batch-preview{margin-top:14px;font-size:13px;color:var(--muted);min-height:18px}
+  .star{cursor:pointer;font-size:16px;color:#cfcfcf;user-select:none;line-height:1}
+  .star.on{color:#f5a623}
   /* ---------- 移动端卡片式列表（≤640px 启用） ---------- */
   .cards{display:flex;flex-direction:column;gap:10px}
   .lead-card{border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:var(--panel);box-shadow:var(--shadow)}
@@ -203,6 +205,23 @@
     </div>
   </div>
 
+  <!-- 批量修改线索状态/优先级 -->
+  <div class="modal-mask" id="editMask">
+    <div class="modal-card">
+      <h2>✏ 批量修改线索</h2>
+      <div class="sub">将勾选客户的线索状态 / 优先级统一修改（留空表示该项不修改）</div>
+      <label>线索状态</label>
+      <select id="eLead"><option value="">— 不修改 —</option><option>待开发</option><option>跟进中</option><option>已成交</option><option>已流失</option><option>已放弃</option></select>
+      <label>优先级</label>
+      <select id="ePri"><option value="">— 不修改 —</option><option value="高">高优先级</option><option value="中">中优先级</option><option value="低">低优先级</option></select>
+      <div class="batch-preview" id="ePreview"></div>
+      <div class="modal-actions">
+        <button class="btn ghost" onclick="closeEdit()">取消</button>
+        <button class="btn warn" onclick="batchUpdate()">执行修改</button>
+      </div>
+    </div>
+  </div>
+
   <!-- drawer -->
   <div class="mask" id="mask"></div>
   <div class="drawer" id="drawer">
@@ -234,7 +253,7 @@ let ME = '';                           // 当前登录账号名（业务员）
 let es = null;                       // SSE 连接
 const MY_ID = Math.random().toString(36).slice(2);  // 本客户端唯一标识
 let lsCount = 0;                     // 实时同步到的更新次数
-const state = {tab:'dash', search:'', province:'', city:'', district:'', industry:'', bizStatus:'', leadStatus:'', priority:'', owner:'', sort:'name', page:1, pageSize:50, mobileLoaded:50};
+const state = {tab:'dash', search:'', province:'', city:'', district:'', industry:'', bizStatus:'', leadStatus:'', priority:'', owner:'', star:'', sort:'name', page:1, pageSize:50, mobileLoaded:50};
 
 async function initStore(){
   try{
@@ -304,6 +323,17 @@ function setLead(id, patch){
   store[id]=cur; saveStore(); syncRemote(id);
 }
 function copyText(t){ if(!t)return; navigator.clipboard?.writeText(t); toast('已复制：'+t); }
+function toggleStar(id){
+  const cur = getLead(id) || {};
+  setLead(id, { star: !cur.star });
+  toast(cur.star ? '已取消星标' : '已设为星标客户 ⭐');
+}
+function fmtTs(ts){ try{ const d=new Date(ts); const p=x=>(''+x).padStart(2,'0'); return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes()); }catch(e){ return ts||''; } }
+function historyHtml(l){
+  const h = l && Array.isArray(l.history) ? l.history.slice().reverse() : [];
+  if(!h.length) return '<div class="hint">暂无操作记录。</div>';
+  return '<div class="timeline">'+h.map(n=>`<div class="tl-item"><div class="t">${fmtTs(n.ts)}</div><div class="x">${escapeHtml(n.action||'')}${n.by?' · '+escapeHtml(n.by):''}</div></div>`).join('')+'</div>';
+}
 
 /* ---------- filters ---------- */
 function applyFilters(){
@@ -337,6 +367,7 @@ function applyFilters(){
       if(state.owner==='__none__'){ if(o) return false; }       // 仅看未分配
       else if(o!==state.owner) return false;                    // 仅看指定业务员
     }
+    if(state.star==='1' && !(l && l.star)) return false;       // 仅看星标客户
     if(q){
       const hay=(d.name+' '+d.phone+' '+d.legal+' '+d.creditCode+' '+d.industry+' '+d.city+' '+d.district+' '+d.email).toLowerCase();
       if(!hay.includes(q)) return false;
@@ -351,6 +382,7 @@ function sortRecs(arr){
     if(s==='est') return (b.establishDate||'').localeCompare(a.establishDate||'');
     if(s==='cap') return parseFloat((b.regCapital||'0').replace(/[^0-9.]/g,''))-parseFloat((a.regCapital||'0').replace(/[^0-9.]/g,''));
     if(s==='province') return (a.province||'').localeCompare(b.province||'zh');
+    if(s==='star') return (b&&b.star?1:0)-(a&&a.star?1:0);
     return 0;
   });
 }
@@ -528,9 +560,10 @@ function renderLeads(){
     <select id="fLead"><option value="">线索状态</option>${LEAD_STATUSES.map(s=>`<option ${s===state.leadStatus?'selected':''}>${s}</option>`).join('')}</select>
     <select id="fPri"><option value="">优先级</option>${PRIORITIES.map(p=>`<option ${p===state.priority?'selected':''}>${p}</option>`).join('')}</select>
     ${IS_ADMIN?'<select id="fOwner"><option value="">全部业务员</option><option value="__none__">未分配</option>'+OWNERS.map(o=>`<option ${o===state.owner?'selected':''}>${o}</option>`).join('')+'</select>':''}
+    ${IS_ADMIN?'<select id="fStar"><option value="">全部（含星标）</option><option value="1" '+(state.star==='1'?'selected':'')+'>⭐ 仅星标</option></select>':''}
     <button class="btn ghost" id="btnReset">重置</button>
     ${IS_ADMIN?'<button class="btn" id="btnExport">⬇ 导出CSV</button>':''}
-    ${IS_ADMIN && !onlyDisabled?'<button class="btn ghost" id="btnSelAll" onclick="toggleSelectAll(true)">☑ 全选当前筛选</button><button class="btn warn" id="btnBatch" disabled style="opacity:0.5">👥 批量分配</button><button class="btn ghost" id="btnRelease" disabled style="opacity:0.5;color:var(--red);border-color:var(--red)">🚫 批量释放</button>' + rfBtn : ''}
+    ${IS_ADMIN && !onlyDisabled?'<button class="btn ghost" id="btnSelAll" onclick="toggleSelectAll(true)">☑ 全选当前筛选</button><button class="btn warn" id="btnBatch" disabled style="opacity:0.5">👥 批量分配</button><button class="btn ghost" id="btnBatchEdit" disabled style="opacity:0.5">✏ 批量改</button><button class="btn ghost" id="btnAssignFilter" style="color:var(--blue);border-color:var(--blue)">📥 按筛选分配</button><button class="btn ghost" id="btnRelease" disabled style="opacity:0.5;color:var(--red);border-color:var(--red)">🚫 批量释放</button>' + rfBtn : ''}
   </div>`;
 
   // bind events after insert
@@ -544,9 +577,10 @@ function renderLeads(){
   document.getElementById('fLead').addEventListener('change',e=>{state.leadStatus=e.target.value;state.page=1;state.mobileLoaded=50;renderTableHost();});
   document.getElementById('fPri').addEventListener('change',e=>{state.priority=e.target.value;state.page=1;state.mobileLoaded=50;renderTableHost();});
   const fo=document.getElementById('fOwner'); if(fo) fo.addEventListener('change',e=>{state.owner=e.target.value;state.page=1;state.mobileLoaded=50;renderTableHost();});
-  document.getElementById('btnReset').addEventListener('click',()=>{Object.assign(state,{search:'',province:'',city:'',district:'',industry:'',bizStatus:'',leadStatus:'',priority:'',owner:'',page:1,mobileLoaded:50});clearSelection();renderLeads();});
+  const fs2=document.getElementById('fStar'); if(fs2) fs2.addEventListener('change',e=>{state.star=e.target.value;state.page=1;state.mobileLoaded=50;renderTableHost();});
+  document.getElementById('btnReset').addEventListener('click',()=>{Object.assign(state,{search:'',province:'',city:'',district:'',industry:'',bizStatus:'',leadStatus:'',priority:'',owner:'',star:'',page:1,mobileLoaded:50});clearSelection();renderLeads();});
   const be=document.getElementById('btnExport'); if(be) be.addEventListener('click',()=>exportCSV());
-  if(IS_ADMIN && !onlyDisabled){ const bb=document.getElementById('btnBatch'); if(bb) bb.addEventListener('click',openBatchAssign); const br=document.getElementById('btnRelease'); if(br) br.addEventListener('click',batchRelease); const brf=document.getElementById('btnReleaseFilter'); if(brf) brf.addEventListener('click',releaseByFilter); }
+  if(IS_ADMIN && !onlyDisabled){ const bb=document.getElementById('btnBatch'); if(bb) bb.addEventListener('click',openBatchAssign); const be2=document.getElementById('btnBatchEdit'); if(be2) be2.addEventListener('click',openBatchEdit); const baf=document.getElementById('btnAssignFilter'); if(baf) baf.addEventListener('click',assignByFilter); const br=document.getElementById('btnRelease'); if(br) br.addEventListener('click',batchRelease); const brf=document.getElementById('btnReleaseFilter'); if(brf) brf.addEventListener('click',releaseByFilter); }
   renderTableHost();
   refreshBatchBtn();
 }
@@ -567,7 +601,7 @@ function renderTableHost(){
   if(narrow){
     const shown=Math.min(total, state.mobileLoaded);
     const view=arr.slice(0, shown);
-    const sortOpts=[['name','企业名称'],['est','成立时间'],['cap','注册资本'],['province','省份']];
+    const sortOpts=[['name','企业名称'],['est','成立时间'],['cap','注册资本'],['province','省份'],['star','星标优先']];
     const sortBar=`<div class="m-sort">排序 <select id="mSort" onchange="setSortMobile(this.value)">${sortOpts.map(([v,t])=>`<option value="${v}" ${state.sort===v?'selected':''}>${t}</option>`).join('')}</select></div>`;
     let cards;
     if(view.length===0){
@@ -598,7 +632,7 @@ function renderTableHost(){
           <span>📞 <a href="javascript:copyText('${d.phone}')" onclick="event.stopPropagation()">${d.phone||'—'}</a></span>
         </div>`;
         return `<div class="lead-card" onclick="openDetail(${d.id})">
-          <div class="row1">${chk}<div class="cname">${d.name}</div></div>
+          <div class="row1">${chk}<span class="star ${l&&l.star?'on':''}" onclick="event.stopPropagation();toggleStar(${d.id})">${l&&l.star?'★':'☆'}</span><div class="cname">${d.name}</div></div>
           ${meta}${tags}
           <div class="cact">${opBtn}</div>
         </div>`;
@@ -613,6 +647,7 @@ function renderTableHost(){
   // ---------- 宽屏（桌面/平板）：表格 ----------
   const head=`<table><thead><tr>
     ${showCheck?`<th style="width:36px"><input type="checkbox" id="chkAll" onchange="toggleSelectAll(this.checked)"></th>`:''}
+    <th style="width:34px" onclick="setSort('star')" title="按星标排序">★${sortMark('star')}</th>
     <th onclick="setSort('name')">企业名称${sortMark('name')}</th>
     <th onclick="setSort('province')">地区${sortMark('province')}</th>
     <th>行业</th>
@@ -625,7 +660,7 @@ function renderTableHost(){
   </tr></thead><tbody>`;
   let body;
   if(pageArr.length===0){
-    body=`<tr><td colspan="${showCheck?10:9}"><div class="empty">${emptyMsg}</div></td></tr>`;
+    body=`<tr><td colspan="${showCheck?11:10}"><div class="empty">${emptyMsg}</div></td></tr>`;
   } else {
     body=pageArr.map(d=>{
       const l=getLead(d.id); const ls=safeLS(l); const pr=safePR(l);
@@ -639,6 +674,7 @@ function renderTableHost(){
       const checked = SELECTED_IDS.has(d.id) ? 'checked' : '';
       return `<tr onclick="openDetail(${d.id})">
         ${showCheck?`<td onclick="event.stopPropagation()"><input type="checkbox" class="row-chk" data-id="${d.id}" ${checked} onchange="onRowCheck(${d.id},this.checked)"></td>`:''}
+        <td><span class="star ${l&&l.star?'on':''}" title="星标客户" onclick="event.stopPropagation();toggleStar(${d.id})">${l&&l.star?'★':'☆'}</span></td>
         <td><b>${d.name}</b></td>
         <td>${(function(){ const p=d.province||'', c=d.city||'', ds=d.district||''; const parts=[p]; if(c) parts.push(c); if(ds) parts.push(ds); return parts.join(' '); })()}</td>
         <td>${d.industry||'<span class="hint">—</span>'}</td>
@@ -692,6 +728,7 @@ function openDetail(id){
       <div class="fm-row">
         <button class="btn" onclick="saveFollow(${id})">💾 保存跟进信息</button>
         <button class="btn ghost" onclick="copyCard(${id})">📋 复制名片</button>
+        <button class="btn ghost" onclick="toggleStar(${id});openDetail(${id})">${l.star?'★ 取消星标':'☆ 设为星标'}</button>
         ${IS_ADMIN && l.owner?'<button class="btn ghost" style="color:var(--red);border-color:var(--red)" onclick="releaseLeads(['+id+'])">🚫 释放归属</button>':''}
       </div>
     </div>
@@ -701,6 +738,11 @@ function openDetail(id){
       ${l.disabled
         ? `<div class="hint" style="margin-bottom:10px">该客户已停用，不在线索库展示，仅管理员可重新启用。</div>${IS_ADMIN?`<button class="btn" style="background:var(--green);color:#fff" onclick="enableLead(${id})">✅ 启用此客户</button>`:'<span class="tag t-gray">仅管理员可启用</span>'}`
         : `<button class="btn" style="background:var(--red);color:#fff" onclick="disableLead(${id})">🚫 停用此客户</button><span class="hint" style="margin-left:8px">停用后将从线索库移除，仅可在「停用库」查阅。</span>`}
+    </div>
+
+    <div class="sec">
+      <div class="sec-title">🕓 操作记录</div>
+      ${historyHtml(l)}
     </div>
 
     <div class="sec">
@@ -871,24 +913,45 @@ function refreshBatchBtn(){
     br.textContent = SELECTED_IDS.size>0 ? `🚫 批量释放(${SELECTED_IDS.size})` : '🚫 批量释放';
     br.style.opacity = SELECTED_IDS.size>0 ? '1' : '0.5';
   }
+  const be2=document.getElementById('btnBatchEdit');
+  if(be2){
+    be2.disabled = SELECTED_IDS.size===0;
+    be2.textContent = SELECTED_IDS.size>0 ? `✏ 批量改(${SELECTED_IDS.size})` : '✏ 批量改';
+    be2.style.opacity = SELECTED_IDS.size>0 ? '1' : '0.5';
+  }
 }
+let BATCH_SCOPE='selected';
 function openBatchAssign(){
   if(SELECTED_IDS.size===0){ toast('请先勾选要分配的客户'); return; }
+  BATCH_SCOPE='selected';
   const m=document.getElementById('batchMask'); if(m) m.classList.add('show');
   const ow=document.getElementById('bOwner');
   ow.innerHTML=OWNERS.map(o=>`<option>${o}</option>`).join('');
   ow.value=OWNERS[0];
   document.getElementById('bPreview').textContent=`已选择 ${SELECTED_IDS.size} 家客户`;
 }
+function assignByFilter(){
+  const ids=applyFilters().map(d=>d.id);
+  if(ids.length===0){ toast('当前筛选条件下没有可分配的客户'); return; }
+  BATCH_SCOPE='filter';
+  const m=document.getElementById('batchMask'); if(m) m.classList.add('show');
+  const ow=document.getElementById('bOwner');
+  ow.innerHTML=OWNERS.map(o=>`<option>${o}</option>`).join('');
+  ow.value=OWNERS[0];
+  document.getElementById('bPreview').textContent=`当前筛选结果共 ${ids.length} 家（将全量指派，不受勾选影响）`;
+}
 function closeBatch(){ const m=document.getElementById('batchMask'); if(m) m.classList.remove('show'); }
 async function batchAssign(){
-  const ids=[...SELECTED_IDS];
   const owner=document.getElementById('bOwner').value;
-  if(ids.length===0){ toast('没有选中的客户'); return; }
-  if(!confirm(`确认将 ${ids.length} 家客户指派给「${owner}」？`)) return;
+  let ids;
+  if(BATCH_SCOPE==='filter') ids=applyFilters().map(d=>d.id);
+  else ids=[...SELECTED_IDS];
+  if(ids.length===0){ toast('没有可分配的客户'); return; }
+  const tip = BATCH_SCOPE==='filter' ? `（当前筛选结果 ${ids.length} 家）` : `（已选 ${ids.length} 家）`;
+  if(!confirm(`确认将 ${ids.length} 家客户指派给「${owner}」？${tip}`)) return;
   try{
     const r=await fetch('/api/followups/batch-assign',{method:'POST',headers:{'Content-Type':'application/json','X-Client-Id':MY_ID},body:JSON.stringify({ids,owner})});
-    if(r.ok){ const j=await r.json(); closeBatch(); clearSelection(); await initStore(); render(); toast(`已成功分配 ${j.count} 家客户给 ${owner}`); }
+    if(r.ok){ const j=await r.json(); closeBatch(); clearSelection(); BATCH_SCOPE='selected'; await initStore(); render(); toast(`已成功分配 ${j.count} 家客户给 ${owner}`); }
     else { const j=await r.json().catch(()=>({})); toast(j.error==='forbidden'?'无权限：仅管理员可执行批量分配':'分配失败，请重试'); }
   }catch(e){ toast('网络错误，请重试'); }
 }
@@ -902,6 +965,29 @@ async function batchRelease(){
     else { const j=await r.json().catch(()=>({})); toast(j.error==='forbidden'?'无权限：仅管理员可释放归属':'释放失败，请重试'); }
   }catch(e){ toast('网络错误，请重试'); }
 }
+function openBatchEdit(){
+  if(SELECTED_IDS.size===0){ toast('请先勾选要修改的客户'); return; }
+  const m=document.getElementById('editMask'); if(m) m.classList.add('show');
+  document.getElementById('eLead').value='';
+  document.getElementById('ePri').value='';
+  document.getElementById('ePreview').textContent=`已选择 ${SELECTED_IDS.size} 家客户`;
+}
+function closeEdit(){ const m=document.getElementById('editMask'); if(m) m.classList.remove('show'); }
+async function batchUpdate(){
+  const ids=[...SELECTED_IDS];
+  const ls=document.getElementById('eLead').value;
+  const pr=document.getElementById('ePri').value;
+  if(ids.length===0){ toast('没有选中的客户'); return; }
+  if(!ls && !pr){ toast('请至少选择要修改的「线索状态」或「优先级」'); return; }
+  const tip = (ls?('线索状态改为「'+ls+'」'):'') + ((ls&&pr)?'、':'') + (pr?('优先级改为「'+pr+'」'):'');
+  if(!confirm(`确认将 ${ids.length} 家客户的${tip}？`)) return;
+  try{
+    const r=await fetch('/api/followups/batch-update',{method:'POST',headers:{'Content-Type':'application/json','X-Client-Id':MY_ID},body:JSON.stringify({ids,leadStatus:ls||undefined,priority:pr||undefined})});
+    if(r.ok){ const j=await r.json(); closeEdit(); clearSelection(); await initStore(); render(); toast(`已修改 ${j.count} 家客户`); }
+    else { toast('修改失败，请重试'); }
+  }catch(e){ toast('网络错误，请重试'); }
+}
+
 async function releaseByFilter(){
   const ids=applyFilters().map(d=>d.id);
   if(ids.length===0){ toast('当前筛选条件下没有可释放的客户'); return; }

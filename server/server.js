@@ -160,6 +160,13 @@ function readStore() {
 function writeStore(obj) {
   fs.writeFileSync(DATA_FILE, JSON.stringify(obj, null, 2), 'utf8');
 }
+// 操作留痕：在变更项上追加一条历史记录（时间 / 动作 / 操作人）
+function logHistory(item, action, who) {
+  if (!item || typeof item !== 'object') return;
+  if (!Array.isArray(item.history)) item.history = [];
+  item.history.push({ ts: new Date().toISOString(), action: String(action || ''), by: who || '系统' });
+  if (item.history.length > 80) item.history = item.history.slice(-80);
+}
 
 /* ---------- 实时推送（SSE） ---------- */
 const clients = new Set();   // 在线销售团队的 EventSource 连接
@@ -318,11 +325,15 @@ const server = http.createServer(async (req, res) => {
       return sendJSON(res, 200, store[id] || null);
     }
     if (req.method === 'PUT' || req.method === 'POST') {
+      const u = currentUser(req);
       const body = await readBody(req);
       delete body.disabled;   // 停用状态只能通过专用接口修改，普通 PUT 不允许改
+      delete body.history;    // 历史只由服务端记录，防止客户端伪造
       if(!body.leadStatus || body.leadStatus==='undefined') body.leadStatus = '待开发';
       const store = readStore();
-      store[id] = Object.assign(store[id] || {}, body, { updated: new Date().toISOString() });
+      const prev = store[id] || {};
+      store[id] = Object.assign({}, prev, body, { updated: new Date().toISOString() });
+      logHistory(store[id], '编辑资料', u);
       writeStore(store);
       broadcast(from);
       syncToGitHub('edit');
@@ -343,8 +354,10 @@ const server = http.createServer(async (req, res) => {
   if (dm && req.method === 'POST') {
     if (!requireAuth(req, res)) return;
     const id = dm[1];
+    const u = currentUser(req);
     const store = readStore();
     store[id] = Object.assign(store[id] || { leadStatus:'待开发', priority:'中', owner:'', notes:[] }, { disabled:true, updated: new Date().toISOString() });
+    logHistory(store[id], '停用客户', u);
     writeStore(store);
     broadcast(req.headers['x-client-id'] || null);
     syncToGitHub('disable');
@@ -363,6 +376,7 @@ const server = http.createServer(async (req, res) => {
     if (store[id]) store[id].disabled = false;
     else store[id] = { disabled:false, leadStatus:'待开发', priority:'中', owner:'', notes:[] };
     store[id].updated = new Date().toISOString();
+    logHistory(store[id], '启用客户', u);
     writeStore(store);
     broadcast(req.headers['x-client-id'] || null);
     syncToGitHub('enable');
@@ -386,7 +400,7 @@ const server = http.createServer(async (req, res) => {
       const key = String(id);
       const cur = store[key] || {};
       cur.owner = owner; if(!cur.leadStatus || cur.leadStatus==='undefined') cur.leadStatus = '待开发'; cur.updated = new Date().toISOString();
-      store[key] = cur; n++;
+      logHistory(cur, '分配归属→'+owner, u); store[key] = cur; n++;
     });
     writeStore(store);
     broadcast(req.headers['x-client-id'] || null);
@@ -410,11 +424,45 @@ const server = http.createServer(async (req, res) => {
       const key = String(id);
       const cur = store[key] || {};
       cur.owner = ''; cur.updated = new Date().toISOString();
-      store[key] = cur; n++;
+      logHistory(cur, '释放归属', u); store[key] = cur; n++;
     });
     writeStore(store);
     broadcast(req.headers['x-client-id'] || null);
     syncToGitHub('batch-release');
+    return sendJSON(res, 200, { ok:true, count:n });
+  }
+
+  // ---- 批量修改线索状态 / 优先级（登录即可，作用于所选客户） ----
+  if (urlPath === '/api/followups/batch-update' && req.method === 'POST') {
+    const u = currentUser(req);
+    if (!u) {
+      res.writeHead(401, { 'Content-Type':'application/json; charset=utf-8', 'Access-Control-Allow-Origin':'*' });
+      return res.end(JSON.stringify({ error:'unauthorized' }));
+    }
+    const body = await readBody(req);
+    const ids = Array.isArray(body.ids) ? body.ids.map(Number).filter(n => n > 0) : [];
+    if (ids.length === 0) return sendJSON(res, 400, { ok:false, error:'ids required' });
+    const ls = body.leadStatus && body.leadStatus!=='undefined' ? body.leadStatus : null;
+    const pr = body.priority && body.priority!=='undefined' ? body.priority : null;
+    if (!ls && !pr) return sendJSON(res, 400, { ok:false, error:'nothing to update' });
+    const store = readStore();
+    let n = 0;
+    const parts = [];
+    if (ls) parts.push('状态→'+ls);
+    if (pr) parts.push('优先级→'+pr);
+    const action = '批量修改('+parts.join('，')+')';
+    ids.forEach(id => {
+      const key = String(id);
+      const cur = store[key] || { leadStatus:'待开发', priority:'中', owner:'', notes:[] };
+      if (ls) cur.leadStatus = ls;
+      if (pr) cur.priority = pr;
+      cur.updated = new Date().toISOString();
+      logHistory(cur, action, u);
+      store[key] = cur; n++;
+    });
+    writeStore(store);
+    broadcast(req.headers['x-client-id'] || null);
+    syncToGitHub('batch-update');
     return sendJSON(res, 200, { ok:true, count:n });
   }
 
