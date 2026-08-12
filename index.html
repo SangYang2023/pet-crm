@@ -526,7 +526,7 @@ function renderLeads(){
     ${IS_ADMIN?'<select id="fOwner"><option value="">全部业务员</option><option value="__none__">未分配</option>'+OWNERS.map(o=>`<option ${o===state.owner?'selected':''}>${o}</option>`).join('')+'</select>':''}
     <button class="btn ghost" id="btnReset">重置</button>
     ${IS_ADMIN?'<button class="btn" id="btnExport">⬇ 导出CSV</button>':''}
-    ${IS_ADMIN && !onlyDisabled?'<button class="btn ghost" id="btnSelAll" onclick="toggleSelectAll(true)">☑ 全选当前筛选</button><button class="btn warn" id="btnBatch" disabled style="opacity:0.5">👥 批量分配</button>':''}
+    ${IS_ADMIN && !onlyDisabled?'<button class="btn ghost" id="btnSelAll" onclick="toggleSelectAll(true)">☑ 全选当前筛选</button><button class="btn warn" id="btnBatch" disabled style="opacity:0.5">👥 批量分配</button><button class="btn ghost" id="btnRelease" disabled style="opacity:0.5;color:var(--red);border-color:var(--red)">🚫 批量释放</button>':''}
   </div>`;
 
   // bind events after insert
@@ -542,7 +542,7 @@ function renderLeads(){
   const fo=document.getElementById('fOwner'); if(fo) fo.addEventListener('change',e=>{state.owner=e.target.value;state.page=1;state.mobileLoaded=50;renderTableHost();});
   document.getElementById('btnReset').addEventListener('click',()=>{Object.assign(state,{search:'',province:'',city:'',district:'',industry:'',bizStatus:'',leadStatus:'',priority:'',owner:'',page:1,mobileLoaded:50});clearSelection();renderLeads();});
   const be=document.getElementById('btnExport'); if(be) be.addEventListener('click',()=>exportCSV());
-  if(IS_ADMIN && !onlyDisabled){ const bb=document.getElementById('btnBatch'); if(bb) bb.addEventListener('click',openBatchAssign); }
+  if(IS_ADMIN && !onlyDisabled){ const bb=document.getElementById('btnBatch'); if(bb) bb.addEventListener('click',openBatchAssign); const br=document.getElementById('btnRelease'); if(br) br.addEventListener('click',batchRelease); }
   renderTableHost();
   refreshBatchBtn();
 }
@@ -860,6 +860,12 @@ function refreshBatchBtn(){
     bb.disabled = SELECTED_IDS.size===0;
     bb.textContent = SELECTED_IDS.size>0 ? `👥 批量分配(${SELECTED_IDS.size})` : '👥 批量分配';
     bb.style.opacity = SELECTED_IDS.size>0 ? '1' : '0.5';
+  }
+  const br=document.getElementById('btnRelease');
+  if(br){
+    br.disabled = SELECTED_IDS.size===0;
+    br.textContent = SELECTED_IDS.size>0 ? `🚫 批量释放(${SELECTED_IDS.size})` : '🚫 批量释放';
+    br.style.opacity = SELECTED_IDS.size>0 ? '1' : '0.5';
   }
 }
 function openBatchAssign(){
