@@ -514,6 +514,9 @@ function renderLeads(){
   const bizStats=Object.keys(BIZ_COLOR);
   const cities=cityOptions();
   const fcnt = applyFilters().length;
+  const rfBtn = fcnt>0
+    ? `<button class="btn ghost" id="btnReleaseFilter" style="color:var(--red);border-color:var(--red);opacity:1">🚫 释放筛选结果(${fcnt})</button>`
+    : `<button class="btn ghost" id="btnReleaseFilter" disabled style="color:var(--red);border-color:var(--red);opacity:0.5">🚫 释放筛选结果(${fcnt})</button>`;
   const toolbar=`
   <div class="toolbar">
     <input class="search" id="fSearch" placeholder="🔍 搜索企业名称 / 手机号 / 法人 / 信用代码 / 行业…" value="${state.search}">
@@ -527,7 +530,7 @@ function renderLeads(){
     ${IS_ADMIN?'<select id="fOwner"><option value="">全部业务员</option><option value="__none__">未分配</option>'+OWNERS.map(o=>`<option ${o===state.owner?'selected':''}>${o}</option>`).join('')+'</select>':''}
     <button class="btn ghost" id="btnReset">重置</button>
     ${IS_ADMIN?'<button class="btn" id="btnExport">⬇ 导出CSV</button>':''}
-    ${IS_ADMIN && !onlyDisabled?'<button class="btn ghost" id="btnSelAll" onclick="toggleSelectAll(true)">☑ 全选当前筛选</button><button class="btn warn" id="btnBatch" disabled style="opacity:0.5">👥 批量分配</button><button class="btn ghost" id="btnRelease" disabled style="opacity:0.5;color:var(--red);border-color:var(--red)">🚫 批量释放</button><button class="btn ghost" id="btnReleaseFilter" ${(fcnt>0)?'':'disabled '}style="color:var(--red);border-color:var(--red);opacity:${(fcnt>0)?'1':'0.5'}">🚫 释放筛选结果(${fcnt})</button>':''}
+    ${IS_ADMIN && !onlyDisabled?'<button class="btn ghost" id="btnSelAll" onclick="toggleSelectAll(true)">☑ 全选当前筛选</button><button class="btn warn" id="btnBatch" disabled style="opacity:0.5">👥 批量分配</button><button class="btn ghost" id="btnRelease" disabled style="opacity:0.5;color:var(--red);border-color:var(--red)">🚫 批量释放</button>' + rfBtn : ''}
   </div>`;
 
   // bind events after insert
