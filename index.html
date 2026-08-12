@@ -88,7 +88,38 @@
   .tl-item .t{font-size:11px;color:var(--muted);margin-bottom:4px}
   .tl-item .x{font-size:13px;white-space:pre-wrap;word-break:break-all}
   .hint{font-size:11px;color:var(--muted)}
-  @media(max-width:1000px){.kpis{grid-template-columns:repeat(2,1fr)}.two{grid-template-columns:1fr}}
+  /* ---------- 响应式：平板（≤1000px） ---------- */
+  @media(max-width:1000px){
+    .topbar{flex-wrap:wrap;gap:8px 14px;padding:12px 16px}
+    .topbar h1{font-size:16px}
+    .topbar .sub{display:none}
+    .topbar .badge{margin-left:0;padding:4px 10px}
+    .topbar .badge#userBadge{margin-left:auto}
+    .kpis{grid-template-columns:repeat(2,1fr)}
+    .two{grid-template-columns:1fr}
+    .wrap{padding:16px}
+    #tableHost{overflow-x:auto;-webkit-overflow-scrolling:touch}
+    table{min-width:720px}
+    .drawer{width:92vw}
+  }
+  /* ---------- 响应式：手机（≤640px） ---------- */
+  @media(max-width:640px){
+    .topbar h1{flex:1 1 100%}
+    .tabs{overflow-x:auto;-webkit-overflow-scrolling:touch;padding:0 8px;white-space:nowrap}
+    .tab{padding:12px 14px;font-size:13px;flex:none}
+    .wrap{padding:12px 10px}
+    .kpis{grid-template-columns:repeat(2,1fr)}
+    .card{padding:14px}
+    .card.kpi .val{font-size:22px}
+    .toolbar input,.toolbar select{flex:1 1 100%;min-width:0}
+    .toolbar input.search{flex:1 1 100%}
+    .toolbar .btn{flex:1 1 auto;min-width:120px}
+    .drawer{width:100%;max-width:100%}
+    .field-grid{grid-template-columns:1fr}
+    .fm-row select,.fm-row input{flex:1 1 100%}
+    .modal-card{padding:20px}
+    .pager{flex-wrap:wrap;justify-content:flex-end;gap:8px}
+  }
   /* login */
   .login-mask{position:fixed;inset:0;background:linear-gradient(120deg,#2f6df6,#15b9a6);display:none;align-items:center;justify-content:center;z-index:200}
   .login-mask.show{display:flex}
@@ -110,6 +141,18 @@
   .modal-actions .btn{flex:1}
   .btn.warn{background:linear-gradient(120deg,#e8590c,#f08c00)}
   .batch-preview{margin-top:14px;font-size:13px;color:var(--muted);min-height:18px}
+  /* ---------- 移动端卡片式列表（≤640px 启用） ---------- */
+  .cards{display:flex;flex-direction:column;gap:10px}
+  .lead-card{border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:var(--panel);box-shadow:var(--shadow)}
+  .lead-card:active{background:var(--soft)}
+  .lead-card .row1{display:flex;align-items:flex-start;gap:10px}
+  .lead-card .cchk{flex:none;margin-top:2px}
+  .lead-card .cname{font-weight:700;font-size:15px;flex:1;line-height:1.35;word-break:break-all}
+  .lead-card .cmeta{display:flex;flex-wrap:wrap;gap:5px 14px;margin-top:7px;font-size:12px;color:var(--muted)}
+  .lead-card .cmeta a{color:var(--accent);text-decoration:none}
+  .lead-card .ctags{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+  .lead-card .cact{margin-top:11px;display:flex;gap:8px}
+  .lead-card .cact .btn{flex:1}
 </style>
 </head>
 <body>
@@ -494,6 +537,7 @@ function renderLeads(){
   refreshBatchBtn();
 }
 function renderTableHost(){
+  const narrow = window.matchMedia('(max-width:640px)').matches;
   let arr=applyFilters();
   arr=sortRecs(arr);
   const total=arr.length;
@@ -503,6 +547,53 @@ function renderTableHost(){
   const pageArr=arr.slice(start,start+state.pageSize);
   const sortMark=(k)=>state.sort===k?' ▾':'';
   const showCheck = IS_ADMIN && state.tab!=='disabled';
+  const emptyMsg = state.tab==='disabled' ? '停用库为空，暂无已停用的客户' : '没有符合条件的线索';
+
+  // ---------- 窄屏（手机）：卡片式列表 ----------
+  if(narrow){
+    let cards;
+    if(pageArr.length===0){
+      cards=`<div class="empty">${emptyMsg}</div>`;
+    } else {
+      cards=pageArr.map(d=>{
+        const l=getLead(d.id); const ls=safeLS(l); const pr=safePR(l);
+        const checked = SELECTED_IDS.has(d.id) ? 'checked' : '';
+        let opBtn;
+        if(state.tab==='disabled'){
+          if(IS_ADMIN) opBtn=`<button class="btn mini" style="background:var(--green);color:#fff" onclick="event.stopPropagation();enableLead(${d.id})">启用</button>`;
+          else opBtn=`<button class="btn mini ghost" onclick="event.stopPropagation();openDetail(${d.id})">查看</button>`;
+        } else {
+          opBtn=`<button class="btn mini ghost" onclick="event.stopPropagation();openDetail(${d.id})">跟进</button>`;
+        }
+        const area=(function(){ const p=d.province||'', c=d.city||'', ds=d.district||''; const parts=[p]; if(c) parts.push(c); if(ds) parts.push(ds); return parts.join(' '); })();
+        const chk=showCheck?`<label class="cchk" onclick="event.stopPropagation()"><input type="checkbox" class="row-chk" data-id="${d.id}" ${checked} onchange="onRowCheck(${d.id},this.checked)"></label>`:'';
+        const tags=`<div class="ctags">
+          <span class="tag ${BIZ_COLOR[d.bizStatus]||'t-gray'}">${d.bizStatus||'—'}</span>
+          <span class="tag ${LEAD_COLOR[ls]}">${ls}</span>
+          ${pr!=='中'?`<span class="tag t-orange">${pr}</span>`:''}
+          ${(l&&l.owner)?`<span class="tag t-blue">${l.owner}</span>`:'<span class="tag t-gray">未分配</span>'}
+        </div>`;
+        const meta=`<div class="cmeta">
+          <span>📍 ${area}</span>
+          <span>🏷️ ${d.industry||'—'}</span>
+          <span>👤 ${d.legal||'—'}</span>
+          <span>📞 <a href="javascript:copyText('${d.phone}')" onclick="event.stopPropagation()">${d.phone||'—'}</a></span>
+        </div>`;
+        return `<div class="lead-card" onclick="openDetail(${d.id})">
+          <div class="row1">${chk}<div class="cname">${d.name}</div></div>
+          ${meta}${tags}
+          <div class="cact">${opBtn}</div>
+        </div>`;
+      }).join('');
+    }
+    const pager=`<div class="pager"><span class="hint">共 ${total.toLocaleString()} 条 · 第 ${state.page}/${pages} 页</span>
+      <button class="btn ghost mini" onclick="goPage(-1)">上一页</button>
+      <button class="btn ghost mini" onclick="goPage(1)">下一页</button></div>`;
+    document.getElementById('tableHost').innerHTML=`<div class="cards">${cards}</div>`+pager;
+    return;
+  }
+
+  // ---------- 宽屏（桌面/平板）：表格 ----------
   const head=`<table><thead><tr>
     ${showCheck?`<th style="width:36px"><input type="checkbox" id="chkAll" onchange="toggleSelectAll(this.checked)"></th>`:''}
     <th onclick="setSort('name')">企业名称${sortMark('name')}</th>
@@ -517,7 +608,6 @@ function renderTableHost(){
   </tr></thead><tbody>`;
   let body;
   if(pageArr.length===0){
-    const emptyMsg = state.tab==='disabled' ? '停用库为空，暂无已停用的客户' : '没有符合条件的线索';
     body=`<tr><td colspan="${showCheck?10:9}"><div class="empty">${emptyMsg}</div></td></tr>`;
   } else {
     body=pageArr.map(d=>{
@@ -777,6 +867,18 @@ async function batchAssign(){
 
 /* ---------- tabs & init ---------- */
 document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{state.tab=t.dataset.tab;state.page=1;render();}));
+/* ---------- 跨断点重渲染线索列表（避免卡片/表格错位） ---------- */
+let _lastNarrow = window.matchMedia('(max-width:640px)').matches;
+let _rsTimer;
+window.addEventListener('resize', ()=>{
+  clearTimeout(_rsTimer);
+  _rsTimer=setTimeout(()=>{
+    const n=window.matchMedia('(max-width:640px)').matches;
+    if(n!==_lastNarrow){ _lastNarrow=n;
+      if(state.tab==='leads'||state.tab==='mine'||state.tab==='disabled') renderTableHost();
+    }
+  },200);
+});
 (async ()=>{
   const me = await checkAuth();
   if(!me){ showLogin(); return; }
