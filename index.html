@@ -198,6 +198,7 @@
       <div class="modal-actions">
         <button class="btn ghost" onclick="closeBatch()">取消</button>
         <button class="btn warn" onclick="batchAssign()">执行分配</button>
+        <button class="btn ghost" style="color:var(--red);border-color:var(--red)" onclick="batchRelease()">🚫 释放归属</button>
       </div>
     </div>
   </div>
@@ -233,7 +234,7 @@ let ME = '';                           // 当前登录账号名（业务员）
 let es = null;                       // SSE 连接
 const MY_ID = Math.random().toString(36).slice(2);  // 本客户端唯一标识
 let lsCount = 0;                     // 实时同步到的更新次数
-const state = {tab:'dash', search:'', province:'', city:'', district:'', industry:'', bizStatus:'', leadStatus:'', priority:'', sort:'name', page:1, pageSize:50, mobileLoaded:50};
+const state = {tab:'dash', search:'', province:'', city:'', district:'', industry:'', bizStatus:'', leadStatus:'', priority:'', owner:'', sort:'name', page:1, pageSize:50, mobileLoaded:50};
 
 async function initStore(){
   try{
@@ -331,6 +332,11 @@ function applyFilters(){
     if(state.bizStatus && d.bizStatus!==state.bizStatus) return false;
     if(state.leadStatus){ const l=getLead(d.id); const ls=safeLS(l); if(ls!==state.leadStatus) return false; }
     if(state.priority){ const l=getLead(d.id); if(safePR(l)!==state.priority) return false; }
+    if(state.owner){
+      const o = l ? (l.owner||'') : '';
+      if(state.owner==='__none__'){ if(o) return false; }       // 仅看未分配
+      else if(o!==state.owner) return false;                    // 仅看指定业务员
+    }
     if(q){
       const hay=(d.name+' '+d.phone+' '+d.legal+' '+d.creditCode+' '+d.industry+' '+d.city+' '+d.district+' '+d.email).toLowerCase();
       if(!hay.includes(q)) return false;
@@ -517,6 +523,7 @@ function renderLeads(){
     <select id="fBiz"><option value="">经营状态</option>${bizStats.map(b=>`<option ${b===state.bizStatus?'selected':''}>${b}</option>`).join('')}</select>
     <select id="fLead"><option value="">线索状态</option>${LEAD_STATUSES.map(s=>`<option ${s===state.leadStatus?'selected':''}>${s}</option>`).join('')}</select>
     <select id="fPri"><option value="">优先级</option>${PRIORITIES.map(p=>`<option ${p===state.priority?'selected':''}>${p}</option>`).join('')}</select>
+    ${IS_ADMIN?'<select id="fOwner"><option value="">全部业务员</option><option value="__none__">未分配</option>'+OWNERS.map(o=>`<option ${o===state.owner?'selected':''}>${o}</option>`).join('')+'</select>':''}
     <button class="btn ghost" id="btnReset">重置</button>
     ${IS_ADMIN?'<button class="btn" id="btnExport">⬇ 导出CSV</button>':''}
     ${IS_ADMIN && !onlyDisabled?'<button class="btn ghost" id="btnSelAll" onclick="toggleSelectAll(true)">☑ 全选当前筛选</button><button class="btn warn" id="btnBatch" disabled style="opacity:0.5">👥 批量分配</button>':''}
@@ -532,7 +539,8 @@ function renderLeads(){
   document.getElementById('fBiz').addEventListener('change',e=>{state.bizStatus=e.target.value;state.page=1;state.mobileLoaded=50;renderTableHost();});
   document.getElementById('fLead').addEventListener('change',e=>{state.leadStatus=e.target.value;state.page=1;state.mobileLoaded=50;renderTableHost();});
   document.getElementById('fPri').addEventListener('change',e=>{state.priority=e.target.value;state.page=1;state.mobileLoaded=50;renderTableHost();});
-  document.getElementById('btnReset').addEventListener('click',()=>{Object.assign(state,{search:'',province:'',city:'',district:'',industry:'',bizStatus:'',leadStatus:'',priority:'',page:1,mobileLoaded:50});clearSelection();renderLeads();});
+  const fo=document.getElementById('fOwner'); if(fo) fo.addEventListener('change',e=>{state.owner=e.target.value;state.page=1;state.mobileLoaded=50;renderTableHost();});
+  document.getElementById('btnReset').addEventListener('click',()=>{Object.assign(state,{search:'',province:'',city:'',district:'',industry:'',bizStatus:'',leadStatus:'',priority:'',owner:'',page:1,mobileLoaded:50});clearSelection();renderLeads();});
   const be=document.getElementById('btnExport'); if(be) be.addEventListener('click',()=>exportCSV());
   if(IS_ADMIN && !onlyDisabled){ const bb=document.getElementById('btnBatch'); if(bb) bb.addEventListener('click',openBatchAssign); }
   renderTableHost();
@@ -680,6 +688,7 @@ function openDetail(id){
       <div class="fm-row">
         <button class="btn" onclick="saveFollow(${id})">💾 保存跟进信息</button>
         <button class="btn ghost" onclick="copyCard(${id})">📋 复制名片</button>
+        ${IS_ADMIN && l.owner?'<button class="btn ghost" style="color:var(--red);border-color:var(--red)" onclick="releaseLeads(['+id+'])">🚫 释放归属</button>':''}
       </div>
     </div>
 
@@ -871,6 +880,25 @@ async function batchAssign(){
     const r=await fetch('/api/followups/batch-assign',{method:'POST',headers:{'Content-Type':'application/json','X-Client-Id':MY_ID},body:JSON.stringify({ids,owner})});
     if(r.ok){ const j=await r.json(); closeBatch(); clearSelection(); await initStore(); render(); toast(`已成功分配 ${j.count} 家客户给 ${owner}`); }
     else { const j=await r.json().catch(()=>({})); toast(j.error==='forbidden'?'无权限：仅管理员可执行批量分配':'分配失败，请重试'); }
+  }catch(e){ toast('网络错误，请重试'); }
+}
+async function batchRelease(){
+  const ids=[...SELECTED_IDS];
+  if(ids.length===0){ toast('请先勾选要释放归属的客户'); return; }
+  if(!confirm(`确认将 ${ids.length} 家客户释放归属（设为未分配）？`)) return;
+  try{
+    const r=await fetch('/api/followups/batch-release',{method:'POST',headers:{'Content-Type':'application/json','X-Client-Id':MY_ID},body:JSON.stringify({ids})});
+    if(r.ok){ const j=await r.json(); closeBatch(); clearSelection(); await initStore(); render(); toast(`已释放 ${j.count} 家客户的归属`); }
+    else { const j=await r.json().catch(()=>({})); toast(j.error==='forbidden'?'无权限：仅管理员可释放归属':'释放失败，请重试'); }
+  }catch(e){ toast('网络错误，请重试'); }
+}
+async function releaseLeads(ids){
+  if(ids.length===0){ toast('没有要释放的客户'); return; }
+  if(!confirm(`确认将 ${ids.length} 家客户释放归属（设为未分配）？`)) return;
+  try{
+    const r=await fetch('/api/followups/batch-release',{method:'POST',headers:{'Content-Type':'application/json','X-Client-Id':MY_ID},body:JSON.stringify({ids})});
+    if(r.ok){ const j=await r.json(); closeDrawer(); await initStore(); render(); toast(`已释放 ${j.count} 家客户的归属`); }
+    else { const j=await r.json().catch(()=>({})); toast(j.error==='forbidden'?'无权限：仅管理员可释放归属':'释放失败，请重试'); }
   }catch(e){ toast('网络错误，请重试'); }
 }
 

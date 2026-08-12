@@ -394,6 +394,30 @@ const server = http.createServer(async (req, res) => {
     return sendJSON(res, 200, { ok:true, count:n });
   }
 
+  // ---- 批量释放归属（仅管理员）：将客户设为未分配 ----
+  if (urlPath === '/api/followups/batch-release' && req.method === 'POST') {
+    const u = currentUser(req);
+    if (!u || !ADMINS.includes(u)) {
+      res.writeHead(403, { 'Content-Type':'application/json; charset=utf-8', 'Access-Control-Allow-Origin':'*' });
+      return res.end(JSON.stringify({ error:'forbidden' }));
+    }
+    const body = await readBody(req);
+    const ids = Array.isArray(body.ids) ? body.ids.map(Number).filter(n => n > 0) : [];
+    if (ids.length === 0) return sendJSON(res, 400, { ok:false, error:'ids required' });
+    const store = readStore();
+    let n = 0;
+    ids.forEach(id => {
+      const key = String(id);
+      const cur = store[key] || {};
+      cur.owner = ''; cur.updated = new Date().toISOString();
+      store[key] = cur; n++;
+    });
+    writeStore(store);
+    broadcast(req.headers['x-client-id'] || null);
+    syncToGitHub('batch-release');
+    return sendJSON(res, 200, { ok:true, count:n });
+  }
+
   // ---- 静态 ----
   if (req.method === 'GET') {
     // 线索数据含手机号等敏感信息，未登录禁止下载
