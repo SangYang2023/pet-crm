@@ -513,6 +513,7 @@ function renderLeads(){
   const industries=uniqueSorted('industry');
   const bizStats=Object.keys(BIZ_COLOR);
   const cities=cityOptions();
+  const fcnt = applyFilters().length;
   const toolbar=`
   <div class="toolbar">
     <input class="search" id="fSearch" placeholder="🔍 搜索企业名称 / 手机号 / 法人 / 信用代码 / 行业…" value="${state.search}">
@@ -526,7 +527,7 @@ function renderLeads(){
     ${IS_ADMIN?'<select id="fOwner"><option value="">全部业务员</option><option value="__none__">未分配</option>'+OWNERS.map(o=>`<option ${o===state.owner?'selected':''}>${o}</option>`).join('')+'</select>':''}
     <button class="btn ghost" id="btnReset">重置</button>
     ${IS_ADMIN?'<button class="btn" id="btnExport">⬇ 导出CSV</button>':''}
-    ${IS_ADMIN && !onlyDisabled?'<button class="btn ghost" id="btnSelAll" onclick="toggleSelectAll(true)">☑ 全选当前筛选</button><button class="btn warn" id="btnBatch" disabled style="opacity:0.5">👥 批量分配</button><button class="btn ghost" id="btnRelease" disabled style="opacity:0.5;color:var(--red);border-color:var(--red)">🚫 批量释放</button>':''}
+    ${IS_ADMIN && !onlyDisabled?'<button class="btn ghost" id="btnSelAll" onclick="toggleSelectAll(true)">☑ 全选当前筛选</button><button class="btn warn" id="btnBatch" disabled style="opacity:0.5">👥 批量分配</button><button class="btn ghost" id="btnRelease" disabled style="opacity:0.5;color:var(--red);border-color:var(--red)">🚫 批量释放</button><button class="btn ghost" id="btnReleaseFilter" ${(fcnt>0)?'':'disabled '}style="color:var(--red);border-color:var(--red);opacity:${(fcnt>0)?'1':'0.5'}">🚫 释放筛选结果(${fcnt})</button>':''}
   </div>`;
 
   // bind events after insert
@@ -542,7 +543,7 @@ function renderLeads(){
   const fo=document.getElementById('fOwner'); if(fo) fo.addEventListener('change',e=>{state.owner=e.target.value;state.page=1;state.mobileLoaded=50;renderTableHost();});
   document.getElementById('btnReset').addEventListener('click',()=>{Object.assign(state,{search:'',province:'',city:'',district:'',industry:'',bizStatus:'',leadStatus:'',priority:'',owner:'',page:1,mobileLoaded:50});clearSelection();renderLeads();});
   const be=document.getElementById('btnExport'); if(be) be.addEventListener('click',()=>exportCSV());
-  if(IS_ADMIN && !onlyDisabled){ const bb=document.getElementById('btnBatch'); if(bb) bb.addEventListener('click',openBatchAssign); const br=document.getElementById('btnRelease'); if(br) br.addEventListener('click',batchRelease); }
+  if(IS_ADMIN && !onlyDisabled){ const bb=document.getElementById('btnBatch'); if(bb) bb.addEventListener('click',openBatchAssign); const br=document.getElementById('btnRelease'); if(br) br.addEventListener('click',batchRelease); const brf=document.getElementById('btnReleaseFilter'); if(brf) brf.addEventListener('click',releaseByFilter); }
   renderTableHost();
   refreshBatchBtn();
 }
@@ -895,6 +896,16 @@ async function batchRelease(){
   try{
     const r=await fetch('/api/followups/batch-release',{method:'POST',headers:{'Content-Type':'application/json','X-Client-Id':MY_ID},body:JSON.stringify({ids})});
     if(r.ok){ const j=await r.json(); closeBatch(); clearSelection(); await initStore(); render(); toast(`已释放 ${j.count} 家客户的归属`); }
+    else { const j=await r.json().catch(()=>({})); toast(j.error==='forbidden'?'无权限：仅管理员可释放归属':'释放失败，请重试'); }
+  }catch(e){ toast('网络错误，请重试'); }
+}
+async function releaseByFilter(){
+  const ids=applyFilters().map(d=>d.id);
+  if(ids.length===0){ toast('当前筛选条件下没有可释放的客户'); return; }
+  if(!confirm(`确认将当前筛选结果中的 ${ids.length} 家客户全部释放归属（设为未分配）？\n此操作会覆盖当前勾选，作用于整个筛选结果，不可撤销。`)) return;
+  try{
+    const r=await fetch('/api/followups/batch-release',{method:'POST',headers:{'Content-Type':'application/json','X-Client-Id':MY_ID},body:JSON.stringify({ids})});
+    if(r.ok){ const j=await r.json(); clearSelection(); await initStore(); render(); toast(`已释放 ${j.count} 家客户的归属`); }
     else { const j=await r.json().catch(()=>({})); toast(j.error==='forbidden'?'无权限：仅管理员可释放归属':'释放失败，请重试'); }
   }catch(e){ toast('网络错误，请重试'); }
 }
