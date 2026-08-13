@@ -71,9 +71,11 @@
   .mask.show{display:block}
   .drawer{position:fixed;top:0;right:0;height:100%;width:560px;max-width:94vw;background:#fff;box-shadow:-10px 0 40px rgba(0,0,0,.18);transform:translateX(100%);transition:transform .25s ease;z-index:60;display:flex;flex-direction:column}
   .drawer.show{transform:translateX(0)}
-  .drawer-head{padding:18px 22px;border-bottom:1px solid var(--line);display:flex;align-items:flex-start;gap:12px}
+  .drawer-head{padding:16px 22px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:10px}
   .drawer-head h2{margin:0;font-size:18px}
-  .drawer-head .x{margin-left:auto;cursor:pointer;font-size:22px;color:var(--muted);line-height:1}
+  .drawer-head .x{cursor:pointer;font-size:22px;color:var(--muted);line-height:1;padding:4px 8px}
+  .drawer-nav{display:flex;align-items:center;gap:8px}
+  .drawer-nav-left{display:flex;align-items:center;gap:6px}
   .drawer-body{padding:18px 22px;overflow:auto;flex:1}
   .field-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;margin-bottom:8px}
   .field{font-size:13px}
@@ -245,11 +247,13 @@
         <h2 id="dName">—</h2>
         <div id="dSub" class="hint"></div>
       </div>
-      <div style="display:flex;align-items:center;gap:8px">
-        <button class="btn ghost" id="dPrev" onclick="navDetail(-1)" title="上一条" style="padding:6px 12px;font-size:16px">◀</button>
-        <span id="dNavPos" style="font-size:12px;color:rgba(255,255,255,.7);min-width:48px;text-align:center">0/0</span>
-        <button class="btn ghost" id="dNext" onclick="navDetail(1)" title="下一条" style="padding:6px 12px;font-size:16px">▶</button>
-        <div class="x" id="dClose">✕</div>
+      <div class="drawer-nav">
+        <div class="drawer-nav-left">
+          <button class="btn ghost" id="dPrev" onclick="navDetail(-1)" title="上一条" style="padding:6px 14px;font-size:16px">◀</button>
+          <span id="dNavPos" style="font-size:12px;color:rgba(255,255,255,.7);min-width:48px;text-align:center">0/0</span>
+          <button class="btn ghost" id="dNext" onclick="navDetail(1)" title="下一条" style="padding:6px 14px;font-size:16px">▶</button>
+        </div>
+        <div class="x" id="dClose" style="margin-left:auto">✕</div>
       </div>
     </div>
     <div class="drawer-body" id="dBody"></div>
