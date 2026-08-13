@@ -45,6 +45,26 @@
     ],
     "disabled": true
   },
+  "32": {
+    "leadStatus": "待开发",
+    "priority": "中",
+    "owner": "",
+    "nextDate": "",
+    "notes": [
+      {
+        "t": "2026/8/13 15:28:17",
+        "text": "手机号搜索不到微信"
+      }
+    ],
+    "updated": "2026-08-13T07:28:17.351Z",
+    "history": [
+      {
+        "ts": "2026-08-13T07:28:17.351Z",
+        "action": "编辑资料",
+        "by": "杨继磊"
+      }
+    ]
+  },
   "42": {
     "leadStatus": "待开发",
     "priority": "中",
