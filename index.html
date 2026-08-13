@@ -103,6 +103,19 @@
     .drawer{width:92vw}
   }
   /* ---------- 响应式：手机（≤640px） ---------- */
+  /* ---------- 移动端筛选折叠（≤640px） ---------- */
+  .m-filter-bar{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+  .m-filter-bar input.search{flex:1;min-width:0}
+  .m-filter-toggle{flex:none;height:38px;padding:0 14px;border-radius:9px;border:1px solid var(--line);background:#fff;color:var(--ink);font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:4px}
+  .m-filter-toggle .arr{transition:transform .2s;font-size:11px}
+  .m-filter-toggle.open .arr{transform:rotate(180deg)}
+  .m-filter-panel{display:none;flex-direction:column;gap:10px;margin-bottom:10px;padding:12px;background:var(--panel);border:1px solid var(--line);border-radius:12px}
+  .m-filter-panel.open{display:flex}
+  .m-filter-row{display:flex;flex-wrap:wrap;gap:8px}
+  .m-filter-row select{flex:1 1 calc(50% - 4px);min-width:0;height:36px;border:1px solid var(--line);border-radius:8px;padding:0 10px;font-size:13px;background:#fff}
+  .m-filter-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+  .m-filter-actions .btn, .m-filter-actions .btn.ghost{flex:1 1 calc(50% - 4px);min-width:0;height:34px;padding:0 8px;font-size:12px;text-align:center}
+
   @media(max-width:640px){
     .topbar h1{flex:1 1 100%}
     .tabs{overflow-x:auto;-webkit-overflow-scrolling:touch;padding:0 8px;white-space:nowrap}
@@ -549,7 +562,20 @@ function renderLeads(){
   const rfBtn = fcnt>0
     ? `<button class="btn ghost" id="btnReleaseFilter" style="color:var(--red);border-color:var(--red);opacity:1">🚫 释放筛选结果(${fcnt})</button>`
     : `<button class="btn ghost" id="btnReleaseFilter" disabled style="color:var(--red);border-color:var(--red);opacity:0.5">🚫 释放筛选结果(${fcnt})</button>`;
-  const toolbar=`
+  // 统计当前激活的筛选条件数量（用于移动端筛选按钮角标）
+  let activeFiltCount = 0;
+  if(state.province) activeFiltCount++;
+  if(state.city) activeFiltCount++;
+  if(state.district) activeFiltCount++;
+  if(state.industry) activeFiltCount++;
+  if(state.bizStatus) activeFiltCount++;
+  if(state.leadStatus) activeFiltCount++;
+  if(state.priority) activeFiltCount++;
+  if(state.owner) activeFiltCount++;
+  if(state.star) activeFiltCount++;
+
+  // ---- 桌面端：原有平铺工具栏 ----
+  const desktopToolbar=`
   <div class="toolbar">
     <input class="search" id="fSearch" placeholder="🔍 搜索企业名称 / 手机号 / 法人 / 信用代码 / 行业…" value="${state.search}">
     <select id="fProvince"><option value="">全部省份</option>${provinces.map(p=>`<option ${p===state.province?'selected':''}>${p}</option>`).join('')}</select>
@@ -565,6 +591,43 @@ function renderLeads(){
     ${IS_ADMIN?'<button class="btn" id="btnExport">⬇ 导出CSV</button>':''}
     ${IS_ADMIN && !onlyDisabled?'<button class="btn ghost" id="btnSelAll" onclick="toggleSelectAll(true)">☑ 全选当前筛选</button><button class="btn warn" id="btnBatch" disabled style="opacity:0.5">👥 批量分配</button><button class="btn ghost" id="btnBatchEdit" disabled style="opacity:0.5">✏ 批量改</button><button class="btn ghost" id="btnAssignFilter" style="color:var(--blue);border-color:var(--blue)">📥 按筛选分配</button><button class="btn ghost" id="btnRelease" disabled style="opacity:0.5;color:var(--red);border-color:var(--red)">🚫 批量释放</button>' + rfBtn : ''}
   </div>`;
+
+  // ---- 手机端：搜索常驻 + 折叠筛选面板 ----
+  const mobileToolbar=`
+  <div class="m-filter-bar">
+    <input class="search" id="fSearch" placeholder="🔍 搜索企业名称 / 手机号…" value="${state.search}">
+    <button class="m-filter-toggle" id="mFilterToggle" onclick="toggleFilterPanel()">
+      🔽 筛选<span id="mFiltBadge"${activeFiltCount>0?' style="background:var(--accent);color:#fff;border-radius:10px;padding:1px 6px;font-size:11px;margin-left:2px"':''}>${activeFiltCount>0?activeFiltCount:''}</span>
+      <span class="arr">▾</span>
+    </button>
+  </div>
+  <div class="m-filter-panel" id="mFilterPanel">
+    <div class="m-filter-row">
+      <select id="fProvince"><option value="">全部省份</option>${provinces.map(p=>`<option ${p===state.province?'selected':''}>${p}</option>`).join('')}</select>
+      <select id="fCity"><option value="">全部城市</option>${cities.map(c=>`<option ${c===state.city?'selected':''}>${c}</option>`).join('')}</select>
+      ${districtOptions().length?'<select id="fDistrict"><option value="">全部区县</option>'+districtOptions().map(x=>`<option ${x===state.district?'selected':''}>${x}</option>`).join('')+'</select>':''}
+      <select id="fIndustry"><option value="">全部行业</option>${industries.map(i=>`<option ${i===state.industry?'selected':''}>${i}</option>`).join('')}</select>
+      <select id="fBiz"><option value="">经营状态</option>${bizStats.map(b=>`<option ${b===state.bizStatus?'selected':''}>${b}</option>`).join('')}</select>
+      <select id="fLead"><option value="">线索状态</option>${LEAD_STATUSES.map(s=>`<option ${s===state.leadStatus?'selected':''}>${s}</option>`).join('')}</select>
+      <select id="fPri"><option value="">优先级</option>${PRIORITIES.map(p=>`<option ${p===state.priority?'selected':''}>${p}</option>`).join('')}</select>
+      ${IS_ADMIN?'<select id="fOwner"><option value="">全部业务员</option><option value="__none__">未分配</option>'+OWNERS.map(o=>`<option ${o===state.owner?'selected':''}>${o}</option>`).join('')+'</select>':''}
+      ${IS_ADMIN?'<select id="fStar"><option value="">全部（含星标）</option><option value="1" '+(state.star==='1'?'selected':'')+'>⭐ 仅星标</option></select>':''}
+    </div>
+    <div class="m-filter-actions">
+      <button class="btn ghost" id="btnReset">重置</button>
+      ${IS_ADMIN?'<button class="btn" id="btnExport">⬇ 导出CSV</button>':''}
+      ${IS_ADMIN && !onlyDisabled?'<button class="btn ghost" id="btnSelAll" onclick="toggleSelectAll(true)">☑全选</button><button class="btn warn" id="btnBatch" disabled style="opacity:0.5">👥批量分配</button><button class="btn ghost" id="btnBatchEdit" disabled style="opacity:0.5">✏批量改</button>' : ''}
+    </div>
+    ${IS_ADMIN && !onlyDisabled?`<div class="m-filter-actions">
+      <button class="btn ghost" id="btnAssignFilter" style="color:var(--blue);border-color:var(--blue)">📥按筛选分配</button>
+      <button class="btn ghost" id="btnRelease" disabled style="opacity:0.5;color:var(--red);border-color:var(--red)">🚫批量释放</button>
+      ${rfBtn}
+    </div>`:''}
+  </div>`;
+
+  // 根据屏幕宽度选择模板（JS 判断，避免闪烁）
+  const narrow = window.matchMedia('(max-width:640px)').matches;
+  const toolbar = narrow ? mobileToolbar : desktopToolbar;
 
   // bind events after insert
   document.getElementById('view').innerHTML = toolbar + `<div id="tableHost"></div>`;
@@ -699,6 +762,21 @@ function goPage(d){ state.page+=d; renderTableHost(); }
 function loadMore(){ state.mobileLoaded += 50; renderTableHost(); }
 // 移动端：卡片顶部排序快捷入口
 function setSortMobile(s){ state.sort=s; state.mobileLoaded=50; renderTableHost(); }
+// 移动端：筛选面板展开/收起
+function toggleFilterPanel(){
+  const panel = document.getElementById('mFilterPanel');
+  const btn = document.getElementById('mFilterToggle');
+  if(!panel || !btn) return;
+  let c=0;
+  if(state.province)c++;if(state.city)c++;if(state.district)c++;
+  if(state.industry)c++;if(state.bizStatus)c++;if(state.leadStatus)c++;
+  if(state.priority)c++;if(state.owner)c++;if(state.star)c++;
+  const isOpen = panel.classList.toggle('open');
+  btn.classList.toggle('open', isOpen);
+  btn.innerHTML = isOpen
+    ? `▲ 收起筛选<span class="arr">▴</span>`
+    : `🔽 筛选${c>0?'<span style="background:var(--accent);color:#fff;border-radius:10px;padding:1px 6px;font-size:11px;margin-left:2px">'+c+'</span>':''}<span class="arr">▾</span>`;
+}
 
 /* ---------- DETAIL ---------- */
 function openDetail(id){
