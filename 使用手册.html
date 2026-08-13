@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>全国宠物行业客户线索 CRM · 使用手册</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; color: #1f2733; background: #f5f7fa; line-height: 1.7; }
+  .wrap { display: flex; max-width: 1180px; margin: 0 auto; }
+  /* 侧边目录 */
+  nav { width: 220px; flex-shrink: 0; position: sticky; top: 0; align-self: flex-start; height: 100vh; overflow-y: auto; background: #fff; border-right: 1px solid #e6eaf0; padding: 22px 16px; }
+  nav h4 { margin: 0 0 10px; font-size: 13px; color: #8a94a6; letter-spacing: .5px; }
+  nav a { display: block; padding: 7px 10px; color: #3a4456; text-decoration: none; border-radius: 6px; font-size: 14px; }
+  nav a:hover { background: #eef3ff; color: #2f6df6; }
+  main { flex: 1; padding: 38px 46px 80px; min-width: 0; }
+  .cover { background: linear-gradient(120deg, #2f6df6, #15b9a6); color: #fff; border-radius: 16px; padding: 40px 38px; margin-bottom: 36px; }
+  .cover h1 { margin: 0 0 8px; font-size: 28px; }
+  .cover p { margin: 0; opacity: .9; }
+  .badge { display: inline-block; background: rgba(255,255,255,.18); border-radius: 20px; padding: 3px 12px; font-size: 12px; margin-top: 14px; }
+  section { background: #fff; border: 1px solid #e9edf3; border-radius: 14px; padding: 26px 30px; margin-bottom: 22px; }
+  section h2 { margin: 0 0 14px; font-size: 21px; color: #1b2a4a; border-left: 4px solid #2f6df6; padding-left: 12px; }
+  section h3 { font-size: 16px; color: #2f6df6; margin: 20px 0 8px; }
+  p, li { font-size: 15px; color: #34404f; }
+  ul { padding-left: 22px; }
+  li { margin: 5px 0; }
+  code { background: #eef1f6; padding: 2px 7px; border-radius: 5px; font-size: 13px; color: #c0392b; }
+  .tip { background: #eafaf3; border-left: 4px solid #15b9a6; padding: 12px 16px; border-radius: 8px; margin: 14px 0; font-size: 14px; }
+  .warn { background: #fff6ec; border-left: 4px solid #f0a020; padding: 12px 16px; border-radius: 8px; margin: 14px 0; font-size: 14px; }
+  .kbd { display:inline-block; background:#2f6df6; color:#fff; border-radius:5px; padding:1px 8px; font-size:12px; }
+  figure { margin: 18px 0; text-align: center; }
+  figure svg { max-width: 100%; height: auto; border: 1px solid #e6eaf0; border-radius: 10px; background: #fff; }
+  figcaption { font-size: 13px; color: #8a94a6; margin-top: 8px; }
+  table.feat { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+  table.feat th, table.feat td { border: 1px solid #e6eaf0; padding: 9px 12px; text-align: left; }
+  table.feat th { background: #f4f7fc; color: #2f3e57; }
+  .role-ad { color: #c0392b; font-weight: 600; }
+  .role-us { color: #2f6df6; font-weight: 600; }
+  @media (max-width: 820px) { nav { display: none; } main { padding: 20px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav>
+  <h4>使用手册目录</h4>
+  <a href="#s1">1. 系统简介</a>
+  <a href="#s2">2. 登录与账号</a>
+  <a href="#s3">3. 界面总览</a>
+  <a href="#s4">4. 查询与筛选</a>
+  <a href="#s5">5. 客户详情</a>
+  <a href="#s6">6. 数据仪表盘</a>
+  <a href="#s7">7. 管理员功能</a>
+  <a href="#s8">8. 移动端使用</a>
+  <a href="#s9">9. 数据与持久化</a>
+  <a href="#s10">10. 常见问题</a>
+</nav>
+<main>
+  <div class="cover">
+    <h1>🐾 全国宠物行业客户线索 CRM</h1>
+    <p>销售线索管理 · 分配跟进 · 数据看板 · 移动办公 一站式平台</p>
+    <span class="badge">使用手册 v1.0</span>
+  </div>
+
+  <section id="s1">
+    <h2>1. 系统简介</h2>
+    <p>本系统用于管理「全国宠物行业」企业客户线索，覆盖<b>线索查询、筛选分配、跟进留痕、数据看板</b>全流程。无论是业务员查看自己的客户，还是管理员统筹分配，都能在一个页面内完成。</p>
+    <ul>
+      <li><b>线索库</b>：所有企业客户线索的统一列表，支持搜索、多维筛选、星标重点客户。</li>
+      <li><b>客户详情</b>：工商信息、联系方式、线索状态、操作记录一应俱全，支持前后翻页。</li>
+      <li><b>数据仪表盘</b>：漏斗、业绩、省份、行业、年份分布可视化。</li>
+      <li><b>管理员后台</b>：批量分配 / 释放 / 改状态、按筛选批量操作、导出数据。</li>
+    </ul>
+    <div class="tip">💡 普通业务员只能看到「未分配」或「分配给本人」的客户；管理员可见全部。仪表盘统计范围随之隔离。</div>
+  </section>
+
+  <section id="s2">
+    <h2>2. 登录与账号</h2>
+    <p>打开系统网址，输入账号密码登录。账号由部署时的环境变量配置：</p>
+    <table class="feat">
+      <tr><th>环境变量</th><th>格式 / 说明</th></tr>
+      <tr><td><code>CRM_USERS</code></td><td>多账号，格式 <code>用户名:密码,用户名2:密码2</code></td></tr>
+      <tr><td><code>CRM_PASSWORD</code></td><td>单账号模式，账号固定为 <code>team</code></td></tr>
+      <tr><td><code>CRM_ADMINS</code></td><td>管理员用户名，逗号分隔，如 <code>张三,李四</code></td></tr>
+    </table>
+    <div class="warn">⚠️ 若部署时未配置任何账号，系统使用默认账号 <code>admin / admin123</code>，请尽快在部署平台的环境变量中修改！</div>
+    <p>登录后右上角显示当前账号；管理员会带 <span class="role-ad">管理员</span> 标识，并多出批量管理类按钮。</p>
+  </section>
+
+  <section id="s3">
+    <h2>3. 界面总览</h2>
+    <p>系统采用「顶部 Banner + 筛选工具栏 + 数据表格 + 右侧详情抽屉」的经典布局：</p>
+    <figure>
+      <svg viewBox="0 0 720 420" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="界面总览示意图">
+        <defs>
+          <linearGradient id="bar" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stop-color="#2f6df6"/><stop offset="1" stop-color="#15b9a6"/>
+          </linearGradient>
+        </defs>
+        <rect x="0" y="0" width="720" height="56" fill="url(#bar)"/>
+        <rect x="16" y="14" width="64" height="28" rx="4" fill="#fff" opacity=".9"/>
+        <text x="92" y="34" fill="#fff" font-size="16" font-weight="700">全国宠物行业客户线索 CRM</text>
+        <rect x="600" y="16" width="96" height="24" rx="12" fill="#fff" opacity=".25"/>
+        <text x="614" y="32" fill="#fff" font-size="12">管理员 ▾</text>
+        <!-- 工具栏 -->
+        <rect x="0" y="56" width="720" height="56" fill="#f4f7fc"/>
+        <rect x="16" y="70" width="300" height="28" rx="6" fill="#fff" stroke="#d4dbe6"/>
+        <text x="26" y="89" fill="#9aa4b2" font-size="12">🔍 搜索企业名称 / 手机号 / 法人…</text>
+        <rect x="330" y="70" width="84" height="28" rx="6" fill="#fff" stroke="#d4dbe6"/>
+        <rect x="422" y="70" width="84" height="28" rx="6" fill="#fff" stroke="#d4dbe6"/>
+        <rect x="514" y="70" width="84" height="28" rx="6" fill="#fff" stroke="#d4dbe6"/>
+        <rect x="606" y="70" width="98" height="28" rx="6" fill="#fff" stroke="#d4dbe6"/>
+        <text x="330" y="63" fill="#8a94a6" font-size="11">省份 城市 行业 线索状态…</text>
+        <!-- 表格 -->
+        <rect x="0" y="112" width="720" height="308" fill="#fff"/>
+        <rect x="16" y="124" width="688" height="30" rx="6" fill="#eef3fb"/>
+        <text x="26" y="144" fill="#2f3e57" font-size="12" font-weight="700">☑</text>
+        <text x="60" y="144" fill="#2f3e57" font-size="12" font-weight="700">★</text>
+        <text x="96" y="144" fill="#2f3e57" font-size="12" font-weight="700">企业名称</text>
+        <text x="320" y="144" fill="#2f3e57" font-size="12" font-weight="700">省份/城市</text>
+        <text x="470" y="144" fill="#2f3e57" font-size="12" font-weight="700">线索状态</text>
+        <text x="570" y="144" fill="#2f3e57" font-size="12" font-weight="700">业务员</text>
+        <text x="670" y="144" fill="#2f3e57" font-size="12" font-weight="700">操作</text>
+        <g stroke="#eef1f5">
+          <line x1="16" y1="170" x2="704" y2="170"/><line x1="16" y1="206" x2="704" y2="206"/>
+          <line x1="16" y1="242" x2="704" y2="242"/><line x1="16" y1="278" x2="704" y2="278"/>
+          <line x1="16" y1="314" x2="704" y2="314"/><line x1="16" y1="350" x2="704" y2="350"/>
+        </g>
+        <g font-size="12" fill="#4a5568">
+          <text x="60" y="190">★ 杭州萌宠宠物用品有限公司</text><text x="320" y="190">浙江/杭州</text><text x="470" y="190">待开发</text><text x="570" y="190">—</text><text x="676" y="190" fill="#2f6df6">查看</text>
+          <text x="60" y="226">★ 成都汪星人宠物医院</text><text x="320" y="226">四川/成都</text><text x="470" y="226">跟进中</text><text x="570" y="226">张三</text><text x="676" y="226" fill="#2f6df6">查看</text>
+          <text x="60" y="262">苏州猫砂工厂</text><text x="320" y="262">江苏/苏州</text><text x="470" y="262">已成交</text><text x="570" y="262">李四</text><text x="676" y="262" fill="#2f6df6">查看</text>
+          <text x="60" y="298">★ 广州宠物食品厂</text><text x="320" y="298">广东/广州</text><text x="470" y="298">待开发</text><text x="570" y="298">—</text><text x="676" y="298" fill="#2f6df6">查看</text>
+          <text x="60" y="334">武汉宠物连锁</text><text x="320" y="334">湖北/武汉</text><text x="470" y="334">已流失</text><text x="570" y="334">王五</text><text x="676" y="334" fill="#2f6df6">查看</text>
+        </g>
+      </svg>
+      <figcaption>图 1：电脑端界面总览（顶栏 Banner + 工具栏 + 线索表格）</figcaption>
+    </figure>
+  </section>
+
+  <section id="s4">
+    <h2>4. 查询与筛选</h2>
+    <h3>4.1 搜索</h3>
+    <p>顶部搜索框支持按 <b>企业名称 / 手机号 / 法人 / 信用代码 / 行业</b> 关键词模糊搜索，输入即筛选。</p>
+    <h3>4.2 条件筛选</h3>
+    <p>提供以下下拉筛选（可任意组合，多个条件为「且」关系）：</p>
+    <table class="feat">
+      <tr><th>筛选项</th><th>说明</th></tr>
+      <tr><td>省份 / 城市 / 区县</td><td>三级地区联动，精确到区县级</td></tr>
+      <tr><td>行业</td><td>按经营范围行业分类</td></tr>
+      <tr><td>经营状态</td><td>存续 / 在业 / 注销 等</td></tr>
+      <tr><td>线索状态</td><td>待开发 / 跟进中 / 已成交 / 已流失</td></tr>
+      <tr><td>优先级</td><td>高 / 中 / 低</td></tr>
+      <tr><td>业务员归属 <span class="role-ad">[管理员]</span></td><td>按负责人筛选，含「未分配」</td></tr>
+      <tr><td>⭐ 仅星标 <span class="role-ad">[管理员]</span></td><td>只看已标记的重点客户</td></tr>
+    </table>
+    <h3>4.3 重置</h3>
+    <p>点击 <span class="kbd">重置</span> 一键清除所有搜索与筛选条件。</p>
+  </section>
+
+  <section id="s5">
+    <h2>5. 查看客户详情</h2>
+    <p>点击任意一行的「查看」，右侧滑出详情抽屉，包含：</p>
+    <ul>
+      <li><b>联系方式</b>：手机号、法人、信用代码等。</li>
+      <li><b>工商信息</b>：注册资本、成立日期、经营状态、注册地址。</li>
+      <li><b>线索信息</b>：线索状态、优先级、归属业务员。</li>
+      <li><b>🕓 操作记录</b>：每一次分配 / 释放 / 改状态的时间与操作人（见第 7 节）。</li>
+    </ul>
+    <h3>前后翻页</h3>
+    <p>抽屉右上角提供 <b>‹ n/N ›</b> 翻页按钮，无需关闭即可在「当前筛选结果」的线索间快速切换；到首/末条时对应按钮自动变灰。</p>
+    <h3>重点星标</h3>
+    <p>点击 <span class="kbd">☆ 设为星标</span> 标记重点客户，列表与卡片中的 ☆ 会变为 ★，并可在筛选中只看星标客户。</p>
+    <figure>
+      <svg viewBox="0 0 720 320" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="详情抽屉示意图">
+        <rect x="0" y="0" width="720" height="320" fill="#eef1f5"/>
+        <rect x="0" y="0" width="500" height="320" fill="#f7f9fc" opacity=".5"/>
+        <!-- 遮罩 -->
+        <rect x="380" y="0" width="340" height="320" fill="rgba(0,0,0,.12)"/>
+        <!-- 抽屉 -->
+        <rect x="410" y="0" width="310" height="320" fill="#fff" stroke="#e2e7ee"/>
+        <text x="426" y="34" font-size="15" font-weight="700" fill="#1b2a4a">杭州萌宠宠物用品有限公司</text>
+        <text x="426" y="54" font-size="11" fill="#8a94a6">存续　浙江省　杭州市　西湖区</text>
+        <rect x="426" y="22" width="74" height="24" rx="12" fill="#f4f7fc" stroke="#d4dbe6"/>
+        <text x="436" y="38" font-size="12" fill="#3a4456">‹ 3/50 ›</text>
+        <rect x="654" y="22" width="24" height="24" rx="12" fill="#fbe9e7"/>
+        <text x="660" y="38" font-size="12" fill="#c0392b">✕</text>
+        <line x1="410" y1="62" x2="720" y2="62" stroke="#e2e7ee"/>
+        <!-- 各区块 -->
+        <rect x="426" y="76" width="68" height="20" rx="5" fill="#eaf2ff"/>
+        <text x="434" y="90" font-size="11" fill="#2f6df6">📞 联系方式</text>
+        <text x="426" y="116" font-size="11" fill="#4a5568">手机：138****8888　法人：陈某</text>
+        <rect x="426" y="134" width="68" height="20" rx="5" fill="#eaf2ff"/>
+        <text x="434" y="148" font-size="11" fill="#2f6df6">🏢 工商信息</text>
+        <text x="426" y="174" font-size="11" fill="#4a5568">注册资本 500万　成立 2019-03</text>
+        <rect x="426" y="192" width="68" height="20" rx="5" fill="#eaf2ff"/>
+        <text x="434" y="206" font-size="11" fill="#2f6df6">🐾 线索信息</text>
+        <text x="426" y="232" font-size="11" fill="#4a5568">状态：待开发　优先级：中　归属：—</text>
+        <rect x="426" y="250" width="84" height="20" rx="5" fill="#eaf2ff"/>
+        <text x="434" y="264" font-size="11" fill="#2f6df6">🕓 操作记录</text>
+        <text x="426" y="288" font-size="10" fill="#8a94a6">08-13 20:10 批量分配 · 张三</text>
+        <text x="426" y="304" font-size="10" fill="#8a94a6">08-10 09:02 设为星标 · 张三</text>
+      </svg>
+      <figcaption>图 2：客户详情抽屉（含翻页、星标、操作记录）</figcaption>
+    </figure>
+  </section>
+
+  <section id="s6">
+    <h2>6. 数据仪表盘</h2>
+    <p>顶部的「仪表盘」展示线索汇总分析，帮助掌握整体进展：</p>
+    <ul>
+      <li><b>转化漏斗</b>：待开发 → 跟进中 → 已成交 各阶段数量。</li>
+      <li><b>业绩分布</b>：按业务员 / 状态的统计。</li>
+      <li><b>地理分布</b>：省份、城市客户数量。</li>
+      <li><b>行业 / 年份分布</b>：客户所属行业与注册年份占比。</li>
+    </ul>
+    <div class="tip">👁️ 权限隔离：管理员看到全部数据；普通业务员只统计「自己可见」的客户，互不干扰。</div>
+    <figure>
+      <svg viewBox="0 0 720 240" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="仪表盘示意图">
+        <rect x="0" y="0" width="720" height="240" fill="#fff" stroke="#e6eaf0"/>
+        <text x="20" y="28" font-size="13" font-weight="700" fill="#2f3e57">转化漏斗</text>
+        <polygon points="60,60 200,60 170,110 90,110" fill="#2f6df6" opacity=".85"/>
+        <polygon points="100,120 160,120 145,160 115,160" fill="#5b8def" opacity=".85"/>
+        <polygon points="125,170 135,170 132,205 128,205" fill="#15b9a6" opacity=".85"/>
+        <text x="62" y="88" fill="#fff" font-size="11">待开发 3200</text>
+        <text x="108" y="145" fill="#fff" font-size="10">跟进 860</text>
+        <text x="118" y="195" fill="#fff" font-size="9">成交 210</text>
+        <text x="360" y="28" font-size="13" font-weight="700" fill="#2f3e57">省份分布</text>
+        <rect x="360" y="50" width="320" height="14" rx="7" fill="#eef3fb"/>
+        <rect x="360" y="50" width="240" height="14" rx="7" fill="#2f6df6"/>
+        <text x="360" y="86" font-size="10" fill="#5a6473">广东</text>
+        <rect x="360" y="92" width="320" height="14" rx="7" fill="#eef3fb"/>
+        <rect x="360" y="92" width="190" height="14" rx="7" fill="#42a5f5"/>
+        <text x="360" y="128" font-size="10" fill="#5a6473">浙江</text>
+        <rect x="360" y="134" width="320" height="14" rx="7" fill="#eef3fb"/>
+        <rect x="360" y="134" width="150" height="14" rx="7" fill="#4fc3f7"/>
+        <text x="360" y="170" font-size="10" fill="#5a6473">江苏</text>
+        <rect x="360" y="176" width="320" height="14" rx="7" fill="#eef3fb"/>
+        <rect x="360" y="176" width="110" height="14" rx="7" fill="#80d8e6"/>
+        <text x="360" y="212" font-size="10" fill="#5a6473">四川</text>
+      </svg>
+      <figcaption>图 3：仪表盘（转化漏斗 + 省份分布示例）</figcaption>
+    </figure>
+  </section>
+
+  <section id="s7">
+    <h2>7. 管理员功能</h2>
+    <p class="role-ad">以下功能仅管理员账号可见。普通业务员无这些按钮。</p>
+    <h3>7.1 业务员归属筛选</h3>
+    <p>工具栏「业务员」下拉可按负责人筛选客户，含「未分配」选项，便于查看某业务员的全部线索。</p>
+    <h3>7.2 批量分配</h3>
+    <p>勾选若干客户 → 点击 <span class="kbd">👥 批量分配</span> → 选择业务员 → 确认。所有被分配客户即归属该业务员，普通业务员将能看到。</p>
+    <h3>7.3 释放（取消归属）</h3>
+    <ul>
+      <li><b>🚫 批量释放</b>：把已勾选的客户变为「未分配」状态。</li>
+      <li><b>🚫 释放筛选结果(N)</b>：一次性释放<b>当前筛选条件下全部 N 条</b>客户，无需逐条勾选。</li>
+    </ul>
+    <h3>7.4 按筛选分配</h3>
+    <p>点击 <span class="kbd">📥 按筛选分配</span>，将「当前筛选结果」全部客户批量指派给某业务员，适合做区域/行业集中分发。</p>
+    <h3>7.5 批量改状态 / 优先级</h3>
+    <p>勾选客户 → <span class="kbd">✏ 批量改</span> → 选择新的线索状态或优先级（可留空）→ 应用，批量更新。</p>
+    <h3>7.6 全选当前筛选</h3>
+    <p><span class="kbd">☑ 全选</span> 一键勾选当前筛选结果的所有客户，配合上面的批量操作使用。</p>
+    <h3>7.7 导出 CSV</h3>
+    <p><span class="kbd">⬇ 导出CSV</span> 将当前列表导出为 Excel 可打开的 CSV 文件。</p>
+    <h3>7.8 操作留痕</h3>
+    <div class="tip">🕓 每一次<b>分配 / 释放 / 改状态 / 停用 / 启用</b>都会自动记录「时间 + 动作 + 操作人」，显示在客户详情的「操作记录」中，责任可追溯。</div>
+  </section>
+
+  <section id="s8">
+    <h2>8. 移动端使用</h2>
+    <p>手机浏览器打开同样可用，已做响应式适配：</p>
+    <ul>
+      <li><b>搜索常驻</b>：顶部搜索框始终显示。</li>
+      <li><b>筛选折叠</b>：点击 <span class="kbd">🔽 筛选 (N)</span> 展开/收起筛选面板，角标 N 表示已激活的筛选项数量。</li>
+      <li><b>卡片视图</b>：客户以卡片形式展示，支持「加载更多」与卡片顶部快捷排序。</li>
+      <li><b>详情抽屉</b>：从右侧滑出，同样支持前后翻页与星标。</li>
+    </ul>
+    <figure>
+      <svg viewBox="0 0 300 460" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="移动端界面示意图">
+        <rect x="20" y="10" width="260" height="440" rx="22" fill="#fff" stroke="#d4dbe6"/>
+        <rect x="20" y="10" width="260" height="46" rx="22" fill="#2f6df6"/>
+        <rect x="20" y="34" width="260" height="22" fill="#2f6df6"/>
+        <text x="36" y="40" fill="#fff" font-size="12" font-weight="700">宠物CRM</text>
+        <rect x="36" y="64" width="228" height="30" rx="8" fill="#f4f7fc" stroke="#d4dbe6"/>
+        <text x="46" y="83" fill="#9aa4b2" font-size="11">🔍 搜索…</text>
+        <rect x="36" y="102" width="120" height="28" rx="14" fill="#eef3fb" stroke="#d4dbe6"/>
+        <text x="48" y="120" fill="#3a4456" font-size="11">🔽 筛选 (2)</text>
+        <!-- 卡片 -->
+        <rect x="36" y="142" width="228" height="64" rx="10" fill="#fff" stroke="#e6eaf0"/>
+        <text x="48" y="166" font-size="12" font-weight="700" fill="#1b2a4a">★ 成都汪星人宠物医院</text>
+        <text x="48" y="186" font-size="10" fill="#8a94a6">四川/成都 · 跟进中 · 张三</text>
+        <rect x="36" y="216" width="228" height="64" rx="10" fill="#fff" stroke="#e6eaf0"/>
+        <text x="48" y="240" font-size="12" font-weight="700" fill="#1b2a4a">苏州猫砂工厂</text>
+        <text x="48" y="260" font-size="10" fill="#8a94a6">江苏/苏州 · 已成交 · 李四</text>
+        <rect x="36" y="290" width="228" height="64" rx="10" fill="#fff" stroke="#e6eaf0"/>
+        <text x="48" y="314" font-size="12" font-weight="700" fill="#1b2a4a">★ 广州宠物食品厂</text>
+        <text x="48" y="334" font-size="10" fill="#8a94a6">广东/广州 · 待开发 · —</text>
+        <rect x="86" y="372" width="128" height="30" rx="15" fill="#eef3fb" stroke="#d4dbe6"/>
+        <text x="118" y="391" fill="#3a4456" font-size="11">加载更多</text>
+      </svg>
+      <figcaption>图 4：移动端卡片视图与折叠筛选</figcaption>
+    </figure>
+  </section>
+
+  <section id="s9">
+    <h2>9. 数据与持久化</h2>
+    <p>系统数据保存在云端仓库，<b>重新部署也不会丢</b>：</p>
+    <ul>
+      <li>每次分配 / 改状态 / 释放等操作，都会自动把数据同步回 GitHub 的 <code>crm-data</code> 独立分支（不影响代码部署）。</li>
+      <li>服务每次启动时自动拉取最新数据恢复，因此换实例、重新部署后数据都在。</li>
+      <li>代码走 <code>main</code> 分支，数据走 <code>crm-data</code> 分支，二者分离，开启自动部署也安全。</li>
+    </ul>
+    <div class="tip">🔄 代码更新后，部署平台会自动重新部署，浏览器刷新即可使用最新版本。</div>
+  </section>
+
+  <section id="s10">
+    <h2>10. 常见问题</h2>
+    <table class="feat">
+      <tr><th>问题</th><th>解决办法</th></tr>
+      <tr><td>登录提示账号错误</td><td>确认账号密码；若用默认账号，检查是否已改为环境变量配置</td></tr>
+      <tr><td>看不到某些客户</td><td>普通业务员仅见「未分配 / 本人」客户；联系管理员分配</td></tr>
+      <tr><td>筛选后想批量操作</td><td>用「释放筛选结果 / 按筛选分配 / 全选」一键处理</td></tr>
+      <tr><td>改完代码没生效</td><td>部署平台重新部署后，浏览器 <b>Ctrl+Shift+R</b> 强刷</td></tr>
+      <tr><td>想导出数据</td><td>管理员点「⬇ 导出CSV」</td></tr>
+    </table>
+    <div class="warn">📌 本手册基于当前系统版本编写，功能以线上实际为准。管理员相关功能需对应权限账号。</div>
+  </section>
+
+  <p style="text-align:center;color:#9aa4b2;font-size:12px;margin-top:30px">全国宠物行业客户线索 CRM · 使用手册 · 仅供内部培训与使用</p>
+</main>
+</div>
+</body>
+</html>
