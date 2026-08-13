@@ -268,6 +268,21 @@
     "updated": "2026-08-12T06:49:41.221Z",
     "priority": "中"
   },
+  "6388": {
+    "leadStatus": "待开发",
+    "priority": "中",
+    "owner": "蒲斌",
+    "nextDate": "",
+    "notes": [],
+    "updated": "2026-08-13T12:16:41.415Z",
+    "history": [
+      {
+        "ts": "2026-08-13T12:16:41.415Z",
+        "action": "编辑资料",
+        "by": "杨继磊"
+      }
+    ]
+  },
   "6389": {
     "owner": "阳云霞",
     "leadStatus": "待开发",
