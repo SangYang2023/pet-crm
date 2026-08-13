@@ -235,7 +235,8 @@ function requireAuth(req, res) {
 
 const MIME = { '.html':'text/html; charset=utf-8', '.js':'application/javascript; charset=utf-8',
   '.css':'text/css; charset=utf-8', '.json':'application/json; charset=utf-8',
-  '.csv':'text/csv; charset=utf-8', '.ico':'image/x-icon' };
+  '.csv':'text/csv; charset=utf-8', '.ico':'image/x-icon',
+  '.jpg':'image/jpeg', '.jpeg':'image/jpeg', '.png':'image/png', '.gif':'image/gif', '.svg':'image/svg+xml' };
 
 function sendJSON(res, code, obj) {
   const body = JSON.stringify(obj);
