@@ -504,6 +504,21 @@
     "updated": "2026-08-11T19:13:27.027Z",
     "priority": "中"
   },
+  "6543": {
+    "leadStatus": "待开发",
+    "priority": "中",
+    "owner": "杨兰香",
+    "nextDate": "",
+    "notes": [],
+    "updated": "2026-08-13T11:00:47.743Z",
+    "history": [
+      {
+        "ts": "2026-08-13T11:00:47.743Z",
+        "action": "编辑资料",
+        "by": "杨继磊"
+      }
+    ]
+  },
   "6544": {
     "owner": "阳云霞",
     "leadStatus": "待开发",
