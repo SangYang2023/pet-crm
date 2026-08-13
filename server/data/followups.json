@@ -77,6 +77,21 @@
     ],
     "disabled": true
   },
+  "65": {
+    "leadStatus": "待开发",
+    "priority": "中",
+    "owner": "",
+    "notes": [],
+    "disabled": true,
+    "updated": "2026-08-13T07:01:21.637Z",
+    "history": [
+      {
+        "ts": "2026-08-13T07:01:21.637Z",
+        "action": "停用客户",
+        "by": "杨继磊"
+      }
+    ]
+  },
   "854": {
     "leadStatus": "待开发",
     "priority": "中",
