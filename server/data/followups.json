@@ -414,6 +414,21 @@
     "updated": "2026-08-12T06:49:41.221Z",
     "priority": "中"
   },
+  "6433": {
+    "leadStatus": "待开发",
+    "priority": "中",
+    "owner": "杨兰香",
+    "nextDate": "",
+    "notes": [],
+    "updated": "2026-08-13T12:18:16.492Z",
+    "history": [
+      {
+        "ts": "2026-08-13T12:18:16.492Z",
+        "action": "编辑资料",
+        "by": "杨继磊"
+      }
+    ]
+  },
   "6438": {
     "owner": "刘长春",
     "leadStatus": "待开发",
