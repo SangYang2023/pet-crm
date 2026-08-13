@@ -35,14 +35,19 @@ if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
    原理：每次数据变更后，把 followups.json 作为文件提交回仓库；
    每次服务启动（含重新部署）时，从 GitHub 拉取最新版本覆盖本地，
    从而实现"换实例 / 重新部署后数据不丢"。需设置以下环境变量：
-     GITHUB_TOKEN      —— 具有 repo 权限的个人访问令牌(PAT)
-     GITHUB_REPO       —— 仓库 owner/name，默认 SangYang2023/pet-crm
-     GITHUB_BRANCH     —— 分支，默认 main
-     GITHUB_DATA_PATH  —— 仓库内数据文件路径，默认 server/data/followups.json
+     GITHUB_TOKEN       —— 具有 repo 权限的个人访问令牌(PAT)
+     GITHUB_REPO        —— 仓库 owner/name，默认 SangYang2023/pet-crm
+     GITHUB_BRANCH      —— 代码分支（Render 部署此分支），默认 main
+     GITHUB_DATA_BRANCH —— 数据分支（与代码分离，避免触发 Auto-Deploy 部署风暴），默认 crm-data
+     GITHUB_DATA_PATH   —— 仓库内数据文件路径，默认 server/data/followups.json
+   注：数据分支与代码分支分离后，可放心开启 Render 的 Auto-Deploy ——
+       代码 push 到 GITHUB_BRANCH 自动部署，数据 sync 推到 GITHUB_DATA_BRANCH 不会触发部署。
    未设置 GITHUB_TOKEN 时自动关闭同步，退化为纯本地文件。 */
 const GH_TOKEN = process.env.GITHUB_TOKEN || '';
 const GH_REPO = process.env.GITHUB_REPO || 'SangYang2023/pet-crm';
 const GH_BRANCH = process.env.GITHUB_BRANCH || 'main';
+// 数据分支：与代码分支分离，避免「数据同步提交」触发 Render 的 Auto-Deploy（部署风暴）
+const GH_DATA_BRANCH = process.env.GITHUB_DATA_BRANCH || 'crm-data';
 const GH_DATA_PATH = process.env.GITHUB_DATA_PATH || 'server/data/followups.json';
 const GH_ENABLED = !!GH_TOKEN;
 if (GH_ENABLED) console.log('[CRM] GitHub 同步已启用 ->', GH_REPO, GH_DATA_PATH);
@@ -72,30 +77,56 @@ function ghRequest(method, apiPath, body) {
   });
 }
 
-async function ghGetFile(p) {
-  const res = await ghRequest('GET', `/repos/${GH_REPO}/contents/${encodeURI(p)}?ref=${GH_BRANCH}`);
+async function ghGetFile(p, branch) {
+  const b = branch || GH_BRANCH;
+  const res = await ghRequest('GET', `/repos/${GH_REPO}/contents/${encodeURI(p)}?ref=${b}`);
   if (res.status === 404) return null;
   if (res.status >= 400) throw new Error('GET ' + res.status + ' ' + res.text);
   try { return JSON.parse(res.text); } catch (e) { throw new Error('parse ' + res.text); }
 }
 
-async function ghPutFile(p, contentB64, sha, message, depth = 0) {
-  const body = JSON.stringify({ message, content: contentB64, ...(sha ? { sha } : {}) });
+async function ghPutFile(p, contentB64, sha, message, branch, depth = 0) {
+  const b = branch || GH_BRANCH;
+  const body = JSON.stringify({ message, content: contentB64, branch: b, ...(sha ? { sha } : {}) });
   const res = await ghRequest('PUT', `/repos/${GH_REPO}/contents/${encodeURI(p)}`, body);
   if (res.status === 409 && depth < 4) {
     // 并发冲突：重新取 sha 后重试
-    const f = await ghGetFile(p);
-    return ghPutFile(p, contentB64, f ? f.sha : null, message, depth + 1);
+    const f = await ghGetFile(p, b);
+    return ghPutFile(p, contentB64, f ? f.sha : null, message, b, depth + 1);
   }
   if (res.status >= 400) throw new Error('PUT ' + res.status + ' ' + res.text);
   return res;
+}
+
+// 确保数据分支存在：不存在时基于主分支创建（仅首次）
+async function ensureDataBranch() {
+  if (!GH_ENABLED) return;
+  if (GH_DATA_BRANCH === GH_BRANCH) return; // 未分离则跳过
+  try {
+    const refRes = await ghRequest('GET', `/repos/${GH_REPO}/git/refs/heads/${GH_DATA_BRANCH}`);
+    if (refRes.status === 200) return; // 已存在
+    if (refRes.status !== 404) {
+      console.log('[CRM] 检查数据分支异常:', refRes.status, refRes.text);
+      return;
+    }
+    // 从主分支最新 commit 创建
+    const mainRef = await ghRequest('GET', `/repos/${GH_REPO}/git/refs/heads/${GH_BRANCH}`);
+    if (mainRef.status !== 200) { console.log('[CRM] 无法获取主分支 HEAD，跳过数据分支创建'); return; }
+    const sha = JSON.parse(mainRef.text).object.sha;
+    const createRes = await ghRequest('POST', `/repos/${GH_REPO}/git/refs`,
+      JSON.stringify({ ref: 'refs/heads/' + GH_DATA_BRANCH, sha }));
+    if (createRes.status === 201) console.log('[CRM] 已创建数据分支 ->', GH_DATA_BRANCH);
+    else console.log('[CRM] 创建数据分支失败:', createRes.status, createRes.text);
+  } catch (e) {
+    console.log('[CRM] ensureDataBranch 出错（忽略）:', e.message);
+  }
 }
 
 // 启动时从 GitHub 拉取最新数据覆盖本地（实现重新部署后恢复）
 async function restoreFromGitHub() {
   if (!GH_ENABLED) return;
   try {
-    const f = await ghGetFile(GH_DATA_PATH);
+    const f = await ghGetFile(GH_DATA_PATH, GH_DATA_BRANCH);
     if (f && f.content) {
       const txt = Buffer.from(f.content, 'base64').toString('utf8');
       // 立即清洗脏数据（leadStatus 为 undefined/"undefined"/空 → "待开发"），不等 readStore 触发
@@ -134,8 +165,8 @@ function syncToGitHub(reason) {
     const content = fs.readFileSync(DATA_FILE, 'utf8');
     const b64 = Buffer.from(content, 'utf8').toString('base64');
     let sha = null;
-    try { const f = await ghGetFile(GH_DATA_PATH); sha = f ? f.sha : null; } catch (e) { /* 文件不存在则创建 */ }
-    await ghPutFile(GH_DATA_PATH, b64, sha, 'chore(data): auto-sync followups.json [' + (reason || 'update') + '] ' + new Date().toISOString());
+    try { const f = await ghGetFile(GH_DATA_PATH, GH_DATA_BRANCH); sha = f ? f.sha : null; } catch (e) { /* 文件不存在则创建 */ }
+    await ghPutFile(GH_DATA_PATH, b64, sha, 'chore(data): auto-sync followups.json [' + (reason || 'update') + '] ' + new Date().toISOString(), GH_DATA_BRANCH);
     console.log('[CRM] 已同步 followups.json 回 GitHub（' + (reason || 'update') + '）');
   }).catch(e => console.log('[CRM] GitHub 同步出错（已忽略，下次变更重试）：', e.message));
   return ghSaveChain;
@@ -490,7 +521,7 @@ function flushAndExit(code) {
 process.on('SIGTERM', () => flushAndExit(0));
 process.on('SIGINT', () => flushAndExit(0));
 
-restoreFromGitHub().finally(() => {
+ensureDataBranch().then(() => restoreFromGitHub()).finally(() => {
   server.listen(PORT, '0.0.0.0', () => {
     console.log(`宠物CRM后端已启动: http://0.0.0.0:${PORT} (监听所有网卡，可用于公网部署)`);
   });
