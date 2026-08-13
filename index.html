@@ -245,7 +245,12 @@
         <h2 id="dName">—</h2>
         <div id="dSub" class="hint"></div>
       </div>
-      <div class="x" id="dClose">✕</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button class="btn ghost" id="dPrev" onclick="navDetail(-1)" title="上一条" style="padding:6px 12px;font-size:16px">◀</button>
+        <span id="dNavPos" style="font-size:12px;color:rgba(255,255,255,.7);min-width:48px;text-align:center">0/0</span>
+        <button class="btn ghost" id="dNext" onclick="navDetail(1)" title="下一条" style="padding:6px 12px;font-size:16px">▶</button>
+        <div class="x" id="dClose">✕</div>
+      </div>
     </div>
     <div class="drawer-body" id="dBody"></div>
   </div>
@@ -857,6 +862,30 @@ function openDetail(id){
     </div>`;
   document.getElementById('mask').classList.add('show');
   document.getElementById('drawer').classList.add('show');
+  // 更新翻页位置
+  _detailId = id;
+  const list = applyFilters();
+  const idx = list.findIndex(x=>x.id===id);
+  const total = list.length;
+  document.getElementById('dNavPos').textContent = total>0 ? `${idx+1}/${total}` : '0/0';
+  document.getElementById('dPrev').disabled = idx<=0;
+  document.getElementById('dPrev').style.opacity = idx<=0?'.3':'1';
+  document.getElementById('dNext').disabled = idx>=total-1 || total===0;
+  document.getElementById('dNext').style.opacity = idx>=total-1 || total===0?'.3':'1';
+}
+
+// 当前详情查看的ID（用于翻页）
+let _detailId = null;
+
+// 详情翻页：dir=1 下一条，dir=-1 上一条
+function navDetail(dir){
+  if(!_detailId) return;
+  const list = applyFilters();
+  const idx = list.findIndex(x=>x.id===_detailId);
+  if(idx<0) return;
+  const nIdx = idx + dir;
+  if(nIdx<0 || nIdx>=list.length) return;
+  openDetail(list[nIdx].id);
 }
 function saveFollow(id){
   const lead=document.getElementById('dLead').value;
