@@ -519,6 +519,21 @@
     "updated": "2026-08-12T06:49:41.221Z",
     "priority": "中"
   },
+  "6458": {
+    "leadStatus": "待开发",
+    "priority": "中",
+    "owner": "蒲斌",
+    "nextDate": "",
+    "notes": [],
+    "updated": "2026-08-13T12:19:21.345Z",
+    "history": [
+      {
+        "ts": "2026-08-13T12:19:21.345Z",
+        "action": "编辑资料",
+        "by": "杨继磊"
+      }
+    ]
+  },
   "6460": {
     "owner": "刘长春",
     "leadStatus": "待开发",
