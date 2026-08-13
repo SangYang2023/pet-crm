@@ -1,4 +1,20 @@
 {
+  "854": {
+    "leadStatus": "待开发",
+    "priority": "中",
+    "owner": "",
+    "nextDate": "",
+    "notes": [],
+    "updated": "2026-08-13T01:50:24.820Z",
+    "star": true,
+    "history": [
+      {
+        "ts": "2026-08-13T01:50:24.820Z",
+        "action": "编辑资料",
+        "by": "杨继磊"
+      }
+    ]
+  },
   "6382": {
     "owner": "阳云霞",
     "leadStatus": "待开发",
