@@ -211,6 +211,22 @@
       }
     ]
   },
+  "3160": {
+    "leadStatus": "待开发",
+    "priority": "中",
+    "owner": "",
+    "nextDate": "",
+    "notes": [],
+    "updated": "2026-08-14T13:43:23.977Z",
+    "star": true,
+    "history": [
+      {
+        "ts": "2026-08-14T13:43:23.977Z",
+        "action": "编辑资料",
+        "by": "邱小波"
+      }
+    ]
+  },
   "5019": {
     "leadStatus": "待开发",
     "priority": "中",
