@@ -164,9 +164,7 @@
   .modal-actions .btn{flex:1}
   .btn.warn{background:linear-gradient(120deg,#e8590c,#f08c00)}
   .batch-preview{margin-top:14px;font-size:13px;color:var(--muted);min-height:18px}
-  .star{cursor:pointer;font-size:16px;color:#cfcfcf;user-select:none;line-height:1}
-  .star.on{color:#f5a623}
-  /* ---------- 移动端卡片式列表（≤640px 启用） ---------- */
+/* ---------- 移动端卡片式列表（≤640px 启用） ---------- */
   .cards{display:flex;flex-direction:column;gap:10px}
   .lead-card{border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:var(--panel);box-shadow:var(--shadow)}
   .lead-card:active{background:var(--soft)}
@@ -192,7 +190,7 @@
   <div class="tabs">
     <div class="tab active" data-tab="dash">📊 仪表盘<span class="cnt" id="cntAll">0</span></div>
     <div class="tab" data-tab="leads">📇 线索库</div>
-    <div class="tab" data-tab="mine">⭐ 我的跟进<span class="cnt" id="cntMine">0</span></div>
+    <div class="tab" data-tab="mine">📋 我的跟进<span class="cnt" id="cntMine">0</span></div>
     <div class="tab" data-tab="disabled">🚫 停用库<span class="cnt" id="cntDisabled">0</span></div>
     <div class="tab" data-tab="funnel">📈 转化漏斗</div>
   </div>
@@ -280,7 +278,7 @@ let ME = '';                           // 当前登录账号名（业务员）
 let es = null;                       // SSE 连接
 const MY_ID = Math.random().toString(36).slice(2);  // 本客户端唯一标识
 let lsCount = 0;                     // 实时同步到的更新次数
-const state = {tab:'dash', search:'', province:'', city:'', district:'', industry:'', bizStatus:'', leadStatus:'', priority:'', owner:'', star:'', sort:'name', page:1, pageSize:50, mobileLoaded:50};
+const state = {tab:'dash', search:'', province:'', city:'', district:'', industry:'', bizStatus:'', leadStatus:'', priority:'', owner:'', sort:'name', page:1, pageSize:50, mobileLoaded:50};
 
 async function initStore(){
   try{
@@ -350,11 +348,6 @@ function setLead(id, patch){
   store[id]=cur; saveStore(); syncRemote(id);
 }
 function copyText(t){ if(!t)return; navigator.clipboard?.writeText(t); toast('已复制：'+t); }
-function toggleStar(id){
-  const cur = getLead(id) || {};
-  setLead(id, { star: !cur.star });
-  toast(cur.star ? '已取消星标' : '已设为星标客户 ⭐');
-}
 function fmtTs(ts){ try{ const d=new Date(ts); const p=x=>(''+x).padStart(2,'0'); return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes()); }catch(e){ return ts||''; } }
 function historyHtml(l){
   const h = l && Array.isArray(l.history) ? l.history.slice().reverse() : [];
@@ -394,7 +387,6 @@ function applyFilters(){
       if(state.owner==='__none__'){ if(o) return false; }       // 仅看未分配
       else if(o!==state.owner) return false;                    // 仅看指定业务员
     }
-    if(state.star==='1' && !(l && l.star)) return false;       // 仅看星标客户
     if(q){
       const hay=(d.name+' '+d.phone+' '+d.legal+' '+d.creditCode+' '+d.industry+' '+d.city+' '+d.district+' '+d.email).toLowerCase();
       if(!hay.includes(q)) return false;
@@ -409,7 +401,6 @@ function sortRecs(arr){
     if(s==='est') return (b.establishDate||'').localeCompare(a.establishDate||'');
     if(s==='cap') return parseFloat((b.regCapital||'0').replace(/[^0-9.]/g,''))-parseFloat((a.regCapital||'0').replace(/[^0-9.]/g,''));
     if(s==='province') return (a.province||'').localeCompare(b.province||'zh');
-    if(s==='star') return (b&&b.star?1:0)-(a&&a.star?1:0);
     return 0;
   });
 }
@@ -586,7 +577,6 @@ function renderLeads(){
   if(state.leadStatus) activeFiltCount++;
   if(state.priority) activeFiltCount++;
   if(state.owner) activeFiltCount++;
-  if(state.star) activeFiltCount++;
 
   // ---- 桌面端：原有平铺工具栏 ----
   const desktopToolbar=`
@@ -600,7 +590,6 @@ function renderLeads(){
     <select id="fLead"><option value="">线索状态</option>${LEAD_STATUSES.map(s=>`<option ${s===state.leadStatus?'selected':''}>${s}</option>`).join('')}</select>
     <select id="fPri"><option value="">优先级</option>${PRIORITIES.map(p=>`<option ${p===state.priority?'selected':''}>${p}</option>`).join('')}</select>
     ${IS_ADMIN?'<select id="fOwner"><option value="">全部业务员</option><option value="__none__">未分配</option>'+OWNERS.map(o=>`<option ${o===state.owner?'selected':''}>${o}</option>`).join('')+'</select>':''}
-    ${IS_ADMIN?'<select id="fStar"><option value="">全部（含星标）</option><option value="1" '+(state.star==='1'?'selected':'')+'>⭐ 仅星标</option></select>':''}
     <button class="btn ghost" id="btnReset">重置</button>
     ${IS_ADMIN?'<button class="btn" id="btnExport">⬇ 导出CSV</button>':''}
     ${IS_ADMIN && !onlyDisabled?'<button class="btn ghost" id="btnSelAll" onclick="toggleSelectAll(true)">☑ 全选当前筛选</button><button class="btn warn" id="btnBatch" disabled style="opacity:0.5">👥 批量分配</button><button class="btn ghost" id="btnBatchEdit" disabled style="opacity:0.5">✏ 批量改</button><button class="btn ghost" id="btnAssignFilter" style="color:var(--blue);border-color:var(--blue)">📥 按筛选分配</button><button class="btn ghost" id="btnRelease" disabled style="opacity:0.5;color:var(--red);border-color:var(--red)">🚫 批量释放</button>' + rfBtn : ''}
@@ -625,7 +614,6 @@ function renderLeads(){
       <select id="fLead"><option value="">线索状态</option>${LEAD_STATUSES.map(s=>`<option ${s===state.leadStatus?'selected':''}>${s}</option>`).join('')}</select>
       <select id="fPri"><option value="">优先级</option>${PRIORITIES.map(p=>`<option ${p===state.priority?'selected':''}>${p}</option>`).join('')}</select>
       ${IS_ADMIN?'<select id="fOwner"><option value="">全部业务员</option><option value="__none__">未分配</option>'+OWNERS.map(o=>`<option ${o===state.owner?'selected':''}>${o}</option>`).join('')+'</select>':''}
-      ${IS_ADMIN?'<select id="fStar"><option value="">全部（含星标）</option><option value="1" '+(state.star==='1'?'selected':'')+'>⭐ 仅星标</option></select>':''}
     </div>
     <div class="m-filter-actions">
       <button class="btn ghost" id="btnReset">重置</button>
@@ -654,8 +642,7 @@ function renderLeads(){
   document.getElementById('fLead').addEventListener('change',e=>{state.leadStatus=e.target.value;state.page=1;state.mobileLoaded=50;renderTableHost();});
   document.getElementById('fPri').addEventListener('change',e=>{state.priority=e.target.value;state.page=1;state.mobileLoaded=50;renderTableHost();});
   const fo=document.getElementById('fOwner'); if(fo) fo.addEventListener('change',e=>{state.owner=e.target.value;state.page=1;state.mobileLoaded=50;renderTableHost();});
-  const fs2=document.getElementById('fStar'); if(fs2) fs2.addEventListener('change',e=>{state.star=e.target.value;state.page=1;state.mobileLoaded=50;renderTableHost();});
-  document.getElementById('btnReset').addEventListener('click',()=>{Object.assign(state,{search:'',province:'',city:'',district:'',industry:'',bizStatus:'',leadStatus:'',priority:'',owner:'',star:'',page:1,mobileLoaded:50});clearSelection();renderLeads();});
+  document.getElementById('btnReset').addEventListener('click',()=>{Object.assign(state,{search:'',province:'',city:'',district:'',industry:'',bizStatus:'',leadStatus:'',priority:'',owner:'',page:1,mobileLoaded:50});clearSelection();renderLeads();});
   const be=document.getElementById('btnExport'); if(be) be.addEventListener('click',()=>exportCSV());
   if(IS_ADMIN && !onlyDisabled){ const bb=document.getElementById('btnBatch'); if(bb) bb.addEventListener('click',openBatchAssign); const be2=document.getElementById('btnBatchEdit'); if(be2) be2.addEventListener('click',openBatchEdit); const baf=document.getElementById('btnAssignFilter'); if(baf) baf.addEventListener('click',assignByFilter); const br=document.getElementById('btnRelease'); if(br) br.addEventListener('click',batchRelease); const brf=document.getElementById('btnReleaseFilter'); if(brf) brf.addEventListener('click',releaseByFilter); }
   renderTableHost();
@@ -678,7 +665,7 @@ function renderTableHost(){
   if(narrow){
     const shown=Math.min(total, state.mobileLoaded);
     const view=arr.slice(0, shown);
-    const sortOpts=[['name','企业名称'],['est','成立时间'],['cap','注册资本'],['province','省份'],['star','星标优先']];
+    const sortOpts=[['name','企业名称'],['est','成立时间'],['cap','注册资本'],['province','省份']];
     const sortBar=`<div class="m-sort">排序 <select id="mSort" onchange="setSortMobile(this.value)">${sortOpts.map(([v,t])=>`<option value="${v}" ${state.sort===v?'selected':''}>${t}</option>`).join('')}</select></div>`;
     let cards;
     if(view.length===0){
@@ -709,7 +696,7 @@ function renderTableHost(){
           <span>📞 <a href="javascript:copyText('${d.phone}')" onclick="event.stopPropagation()">${d.phone||'—'}</a></span>
         </div>`;
         return `<div class="lead-card" onclick="openDetail(${d.id})">
-          <div class="row1">${chk}<span class="star ${l&&l.star?'on':''}" onclick="event.stopPropagation();toggleStar(${d.id})">${l&&l.star?'★':'☆'}</span><div class="cname">${d.name}</div></div>
+          <div class="row1">${chk}<div class="cname">${d.name}</div></div>
           ${meta}${tags}
           <div class="cact">${opBtn}</div>
         </div>`;
@@ -724,7 +711,6 @@ function renderTableHost(){
   // ---------- 宽屏（桌面/平板）：表格 ----------
   const head=`<table><thead><tr>
     ${showCheck?`<th style="width:36px"><input type="checkbox" id="chkAll" onchange="toggleSelectAll(this.checked)"></th>`:''}
-    <th style="width:34px" onclick="setSort('star')" title="按星标排序">★${sortMark('star')}</th>
     <th onclick="setSort('name')">企业名称${sortMark('name')}</th>
     <th onclick="setSort('province')">地区${sortMark('province')}</th>
     <th>行业</th>
@@ -737,7 +723,7 @@ function renderTableHost(){
   </tr></thead><tbody>`;
   let body;
   if(pageArr.length===0){
-    body=`<tr><td colspan="${showCheck?11:10}"><div class="empty">${emptyMsg}</div></td></tr>`;
+    body=`<tr><td colspan="${showCheck?10:9}"><div class="empty">${emptyMsg}</div></td></tr>`;
   } else {
     body=pageArr.map(d=>{
       const l=getLead(d.id); const ls=safeLS(l); const pr=safePR(l);
@@ -751,7 +737,6 @@ function renderTableHost(){
       const checked = SELECTED_IDS.has(d.id) ? 'checked' : '';
       return `<tr onclick="openDetail(${d.id})">
         ${showCheck?`<td onclick="event.stopPropagation()"><input type="checkbox" class="row-chk" data-id="${d.id}" ${checked} onchange="onRowCheck(${d.id},this.checked)"></td>`:''}
-        <td><span class="star ${l&&l.star?'on':''}" title="星标客户" onclick="event.stopPropagation();toggleStar(${d.id})">${l&&l.star?'★':'☆'}</span></td>
         <td><b>${d.name}</b></td>
         <td>${(function(){ const p=d.province||'', c=d.city||'', ds=d.district||''; const parts=[p]; if(c) parts.push(c); if(ds) parts.push(ds); return parts.join(' '); })()}</td>
         <td>${d.industry||'<span class="hint">—</span>'}</td>
@@ -784,7 +769,7 @@ function toggleFilterPanel(){
   let c=0;
   if(state.province)c++;if(state.city)c++;if(state.district)c++;
   if(state.industry)c++;if(state.bizStatus)c++;if(state.leadStatus)c++;
-  if(state.priority)c++;if(state.owner)c++;if(state.star)c++;
+  if(state.priority)c++;if(state.owner)c++;
   const isOpen = panel.classList.toggle('open');
   btn.classList.toggle('open', isOpen);
   btn.innerHTML = isOpen
@@ -820,7 +805,6 @@ function openDetail(id){
       <div class="fm-row">
         <button class="btn" onclick="saveFollow(${id})">💾 保存跟进信息</button>
         <button class="btn ghost" onclick="copyCard(${id})">📋 复制名片</button>
-        <button class="btn ghost" onclick="toggleStar(${id});openDetail(${id})">${l.star?'★ 取消星标':'☆ 设为星标'}</button>
         ${IS_ADMIN && l.owner?'<button class="btn ghost" style="color:var(--red);border-color:var(--red)" onclick="releaseLeads(['+id+'])">🚫 释放归属</button>':''}
       </div>
     </div>
